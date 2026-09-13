@@ -28,9 +28,14 @@ data class Product(
     val name: String,
     val category: String,
     val location: String?,
+    val options: String = "",
 ) {
     val displayName: String
         get() = if (category.isNotBlank() && category != name) "$name ($category)" else name
+
+    /** FLPN products have a fixed license plate bound to the permit. */
+    val hasFixedPlate: Boolean
+        get() = options.split("|").contains("FLPN")
 }
 
 data class Member(
@@ -40,6 +45,17 @@ data class Member(
     val actionId: String?,
     val timeStart: String?,
     val timeEnd: String?,
+)
+
+data class ProductDetails(
+    val members: List<Member>,
+    /** Fixed plate bound to the permit (FLPN products), normalized. */
+    val fixedPlate: String?,
+    /**
+     * True when the fixed plate is currently covered, i.e. no temporary
+     * plate override (LPN action) is active. Mirrors the web app logic.
+     */
+    val fixedPlateActive: Boolean,
 )
 
 data class Balance(
@@ -221,6 +237,7 @@ class TwoParkApi {
                         name = product.optString("pdt_name"),
                         category = categoryName,
                         location = findDefaultLocation(product),
+                        options = product.optString("pdt_options"),
                     )
                 )
             }
@@ -258,14 +275,16 @@ class TwoParkApi {
         return null
     }
 
-    suspend fun getMembers(productId: String): List<Member> {
-        val details = getProductDetails(productId)
-        val members = details.optJSONObject("data")?.optJSONArray("pdt_members") ?: JSONArray()
-        val result = mutableListOf<Member>()
-        for (i in 0 until members.length()) {
-            val member = members.optJSONObject(i) ?: continue
+    suspend fun getDetails(productId: String): ProductDetails {
+        val payload = getProductDetails(productId)
+        val data = payload.optJSONObject("data") ?: JSONObject()
+
+        val members = mutableListOf<Member>()
+        val rawMembers = data.optJSONArray("pdt_members") ?: JSONArray()
+        for (i in 0 until rawMembers.length()) {
+            val member = rawMembers.optJSONObject(i) ?: continue
             val action = extractActiveAction(member)
-            result.add(
+            members.add(
                 Member(
                     plate = normalizePlate(member.optString("mbr_identifier")),
                     nickname = extractParam(member.optJSONArray("mbr_parameters"), "NICKNAME"),
@@ -276,8 +295,33 @@ class TwoParkApi {
                 )
             )
         }
-        return result
+
+        // FLPN products list the permit's fixed plate under pdt_identifications:
+        // the idn_member with mbr_type "FLPN" is the fixed plate, and it is
+        // covered whenever no LPN member of the identification is active.
+        var fixedPlate: String? = null
+        var overrideActive = false
+        val identifications = data.optJSONArray("pdt_identifications") ?: JSONArray()
+        for (i in 0 until identifications.length()) {
+            val idnMembers = identifications.optJSONObject(i)
+                ?.optJSONArray("idn_members") ?: continue
+            for (j in 0 until idnMembers.length()) {
+                val member = idnMembers.optJSONObject(j) ?: continue
+                when (member.optString("mbr_type")) {
+                    "FLPN" -> fixedPlate = normalizePlate(member.optString("mbr_identifier"))
+                    "LPN" -> if (member.optString("mbr_active") == "YES") overrideActive = true
+                }
+            }
+        }
+
+        return ProductDetails(
+            members = members,
+            fixedPlate = fixedPlate?.takeIf { it.isNotBlank() },
+            fixedPlateActive = fixedPlate != null && !overrideActive,
+        )
     }
+
+    suspend fun getMembers(productId: String): List<Member> = getDetails(productId).members
 
     suspend fun getBalance(productId: String): Balance = withAuthRetry {
         val payload = postForm(

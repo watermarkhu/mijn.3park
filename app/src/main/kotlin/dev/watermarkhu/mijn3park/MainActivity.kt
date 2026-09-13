@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
 
     private var products: List<Product> = emptyList()
     private var serverMembers: List<Member> = emptyList()
+    private var productDetails: ProductDetails? = null
     private var appliedDefaultProduct = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -146,6 +147,16 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.error_no_plate, Toast.LENGTH_SHORT).show()
             return
         }
+        productDetails?.let { details ->
+            if (plate == details.fixedPlate && details.fixedPlateActive) {
+                Toast.makeText(
+                    this,
+                    getString(R.string.fixed_plate_covered, plate),
+                    Toast.LENGTH_LONG,
+                ).show()
+                return
+            }
+        }
         if (prefs.productId.isBlank()) {
             Toast.makeText(this, R.string.error_no_product, Toast.LENGTH_SHORT).show()
             return
@@ -195,6 +206,10 @@ class MainActivity : AppCompatActivity() {
         prefs.productName = product.displayName
         prefs.productLocation = product.location.orEmpty()
         productDropdown.setText(product.displayName, false)
+        productDetails = null
+        serverMembers = emptyList()
+        renderPlateChips()
+        renderState()
         updateDefaultStar()
         refreshRemoteData()
     }
@@ -211,11 +226,21 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 ensureLoggedIn()
-                val members = api.getMembers(prefs.productId)
+                val details = api.getDetails(prefs.productId)
+                productDetails = details
+                val members = details.members
                 serverMembers = members
                 renderPlateChips()
 
-                val suggestions = (members.map { it.plate } + prefs.savedPlates).distinct()
+                // Prefill the fixed plate when the field is still empty.
+                details.fixedPlate?.let { fixed ->
+                    if (plateInput.text.isNullOrBlank() && !prefs.isParking) {
+                        plateInput.setText(fixed, false)
+                    }
+                }
+
+                val suggestions =
+                    (listOfNotNull(details.fixedPlate) + members.map { it.plate } + prefs.savedPlates).distinct()
                 plateInput.setAdapter(
                     ArrayAdapter(
                         this@MainActivity,
@@ -257,9 +282,20 @@ class MainActivity : AppCompatActivity() {
     private fun renderPlateChips() {
         plateChips.removeAllViews()
 
+        // Fixed plate bound to the permit (FLPN products), always first.
+        productDetails?.fixedPlate?.let { fixed ->
+            val chip = Chip(this).apply {
+                text = getString(R.string.fixed_plate_chip, fixed)
+                isCheckable = true
+                setOnClickListener { plateInput.setText(fixed, false) }
+            }
+            plateChips.addView(chip)
+        }
+
         // Plates saved on the 2park account (with nickname when set).
-        val serverPlates = serverMembers.map { it.plate }.toSet()
-        serverMembers.forEach { member ->
+        val fixedPlate = productDetails?.fixedPlate
+        val serverPlates = serverMembers.map { it.plate }.toSet() + setOfNotNull(fixedPlate)
+        serverMembers.filter { it.plate != fixedPlate }.forEach { member ->
             val chip = Chip(this).apply {
                 text = member.nickname?.let { "$it · ${member.plate}" } ?: member.plate
                 isCheckable = true
@@ -293,7 +329,12 @@ class MainActivity : AppCompatActivity() {
             plateInput.isEnabled = false
             productDropdown.isEnabled = false
         } else {
-            statusText.setText(R.string.status_idle)
+            val details = productDetails
+            if (details?.fixedPlate != null && details.fixedPlateActive) {
+                statusText.text = getString(R.string.status_fixed_plate, details.fixedPlate)
+            } else {
+                statusText.setText(R.string.status_idle)
+            }
             toggleButton.setText(R.string.start_parking)
             plateInput.isEnabled = true
             productDropdown.isEnabled = true

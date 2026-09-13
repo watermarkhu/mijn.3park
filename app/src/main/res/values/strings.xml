@@ -19,6 +19,9 @@
     <string name="start_parking">Start parking</string>
     <string name="stop_parking">Stop parking</string>
     <string name="status_idle">Not parking</string>
+    <string name="status_fixed_plate">Permit covers %1$s</string>
+    <string name="fixed_plate_chip">★ %1$s</string>
+    <string name="fixed_plate_covered">%1$s is the permit’s fixed plate and already covered</string>
     <string name="status_active">Parking active for %1$s since %2$s</string>
     <string name="error_no_plate">Enter or select a license plate</string>
     <string name="error_no_product">Select a product first</string>
