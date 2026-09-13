@@ -6,6 +6,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.ArrayAdapter
+import android.widget.CheckBox
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -33,9 +34,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progress: LinearProgressIndicator
 
     private lateinit var balanceText: TextView
+    private lateinit var defaultProductStar: CheckBox
 
     private var products: List<Product> = emptyList()
     private var serverMembers: List<Member> = emptyList()
+    private var appliedDefaultProduct = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,19 +60,29 @@ class MainActivity : AppCompatActivity() {
         progress = findViewById(R.id.progress)
         balanceText = findViewById(R.id.balanceText)
 
+        defaultProductStar = findViewById(R.id.defaultProductStar)
+
         if (prefs.lastBalance.isNotBlank()) {
             balanceText.text = getString(R.string.balance_label, prefs.lastBalance)
             balanceText.visibility = View.VISIBLE
         }
 
+        defaultProductStar.setOnClickListener {
+            if (defaultProductStar.isChecked) {
+                prefs.defaultProductId = prefs.productId
+                Toast.makeText(
+                    this,
+                    getString(R.string.default_product_set, prefs.productName),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            } else {
+                prefs.defaultProductId = ""
+            }
+        }
+
         productDropdown.setText(prefs.productName, false)
         productDropdown.setOnItemClickListener { _, _, position, _ ->
-            products.getOrNull(position)?.let { product ->
-                prefs.productId = product.id
-                prefs.productName = product.displayName
-                prefs.productLocation = product.location.orEmpty()
-                refreshRemoteData()
-            }
+            products.getOrNull(position)?.let { selectProduct(it) }
         }
 
         toggleButton.setOnClickListener { onToggleParking() }
@@ -158,18 +171,38 @@ class MainActivity : AppCompatActivity() {
                         products.map { it.displayName },
                     )
                 )
+                // Preselect the default product once per app start.
+                if (!appliedDefaultProduct) {
+                    appliedDefaultProduct = true
+                    products.firstOrNull { it.id == prefs.defaultProductId }
+                        ?.takeIf { it.id != prefs.productId && !prefs.isParking }
+                        ?.let { selectProduct(it) }
+                }
+
                 // Keep stored selection valid.
                 if (products.none { it.id == prefs.productId }) {
-                    val first = products.first()
-                    prefs.productId = first.id
-                    prefs.productName = first.displayName
-                    prefs.productLocation = first.location.orEmpty()
-                    productDropdown.setText(first.displayName, false)
+                    selectProduct(products.first())
                 }
+                updateDefaultStar()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun selectProduct(product: Product) {
+        prefs.productId = product.id
+        prefs.productName = product.displayName
+        prefs.productLocation = product.location.orEmpty()
+        productDropdown.setText(product.displayName, false)
+        updateDefaultStar()
+        refreshRemoteData()
+    }
+
+    private fun updateDefaultStar() {
+        defaultProductStar.visibility = if (products.size > 1) View.VISIBLE else View.GONE
+        defaultProductStar.isChecked =
+            prefs.productId.isNotBlank() && prefs.productId == prefs.defaultProductId
     }
 
     /** Pull server-side members: suggest their plates and sync active state. */

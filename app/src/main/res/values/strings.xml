@@ -22,6 +22,8 @@
     <string name="status_active">Parking active for %1$s since %2$s</string>
     <string name="error_no_plate">Enter or select a license plate</string>
     <string name="error_no_product">Select a product first</string>
+    <string name="set_default_product">Use as default product</string>
+    <string name="default_product_set">Default product: %1$s</string>
     <string name="menu_refresh">Refresh</string>
     <string name="menu_logout">Log out</string>
 

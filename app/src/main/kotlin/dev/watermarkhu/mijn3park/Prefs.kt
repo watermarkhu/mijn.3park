@@ -33,6 +33,11 @@ class Prefs(context: Context) {
         get() = prefs.getString("product_location", "") ?: ""
         set(value) = prefs.edit().putString("product_location", value).apply()
 
+    /** Product preselected at app start; empty means "last used". */
+    var defaultProductId: String
+        get() = prefs.getString("default_product_id", "") ?: ""
+        set(value) = prefs.edit().putString("default_product_id", value).apply()
+
     /** Locally saved plates, most recently used first. */
     var savedPlates: List<String>
         get() {
