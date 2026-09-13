@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Login -->
+    <string name="login_title">Inloggen met mijn.2park.nl</string>
+    <string name="email">E-mailadres</string>
+    <string name="password">Wachtwoord</string>
+    <string name="login">Inloggen</string>
+    <string name="login_failed">Inloggen mislukt: %1$s</string>
+
+    <!-- Main -->
+    <string name="product">Product</string>
+    <string name="license_plate">Kenteken</string>
+    <string name="saved_plates">Opgeslagen kentekens</string>
+    <string name="nickname">Naam</string>
+    <string name="add">Toevoegen</string>
+    <string name="add_plate">Kenteken toevoegen</string>
+    <string name="edit_plate">Kenteken bewerken</string>
+    <string name="save">Opslaan</string>
+    <string name="delete">Verwijderen</string>
+    <string name="cancel">Annuleren</string>
+    <string name="favorite_saved">Kenteken opgeslagen in account</string>
+    <string name="favorite_deleted">Kenteken verwijderd uit account</string>
+    <string name="balance_label">Saldo: %1$s</string>
+    <string name="start_parking">Start parkeren</string>
+    <string name="stop_parking">Stop parkeren</string>
+    <string name="status_idle">Niet aan het parkeren</string>
+    <string name="status_fixed_plate">Vergunning dekt %1$s</string>
+    <string name="fixed_plate_covered">%1$s is het vaste kenteken van de vergunning en al gedekt</string>
+    <string name="status_active">Parkeren actief voor %1$s sinds %2$s</string>
+    <string name="error_no_plate">Voer een kenteken in of selecteer er een</string>
+    <string name="error_no_product">Selecteer eerst een product</string>
+    <string name="set_default_product">Als standaardproduct gebruiken</string>
+    <string name="default_product_set">Standaardproduct: %1$s</string>
+    <string name="menu_refresh">Vernieuwen</string>
+    <string name="menu_topup">Saldo opwaarderen</string>
+    <string name="topup_title">Saldo opwaarderen</string>
+    <string name="topup_none">Geen opwaardeeropties beschikbaar voor dit product</string>
+    <string name="menu_logout">Uitloggen</string>
+
+    <!-- Notification -->
+    <string name="notification_channel_name">Actief parkeren</string>
+    <string name="notification_channel_description">Zichtbaar zolang er wordt geparkeerd</string>
+    <string name="notification_title">Parkeren actief</string>
+    <string name="notification_text">%1$s · sinds %2$s</string>
+    <string name="notification_text_balance">%1$s · sinds %2$s · saldo %3$s</string>
+    <string name="notification_starting">Parkeren starten…</string>
+    <string name="notification_stopping">Parkeren stoppen…</string>
+    <string name="notification_renew_failed">Verlengen mislukt, nieuwe poging volgt: %1$s</string>
+    <string name="notification_stop_failed">Stoppen mislukt: %1$s</string>
+    <string name="notification_action_stop">Stop</string>
+</resources>

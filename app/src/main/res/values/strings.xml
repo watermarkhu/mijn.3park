@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">mijn.3park</string>
+    <string name="app_name" translatable="false">mijn.3park</string>
 
     <!-- Login -->
     <string name="login_title">Log in with mijn.2park.nl</string>
@@ -12,8 +12,8 @@
     <!-- Main -->
     <string name="product">Product</string>
     <string name="license_plate">License plate</string>
-    <string name="plate_hint">XX-99-XX</string>
-    <string name="plate_country">NL</string>
+    <string name="plate_hint" translatable="false">XX-99-XX</string>
+    <string name="plate_country" translatable="false">NL</string>
     <string name="saved_plates">Saved plates</string>
     <string name="nickname">Name</string>
     <string name="add">Add</string>
@@ -29,7 +29,7 @@
     <string name="stop_parking">Stop parking</string>
     <string name="status_idle">Not parking</string>
     <string name="status_fixed_plate">Permit covers %1$s</string>
-    <string name="fixed_plate_chip">★ %1$s</string>
+    <string name="fixed_plate_chip" translatable="false">★ %1$s</string>
     <string name="fixed_plate_covered">%1$s is the permit’s fixed plate and already covered</string>
     <string name="status_active">Parking active for %1$s since %2$s</string>
     <string name="error_no_plate">Enter or select a license plate</string>
