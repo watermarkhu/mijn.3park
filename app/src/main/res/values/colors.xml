@@ -2,7 +2,8 @@
 <resources>
     <color name="primary">#FF6750A4</color>
     <color name="on_primary">#FFFFFFFF</color>
-    <color name="ic_launcher_background">#3DDC84</color>
+    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="ic_launcher_car">#01008E</color>
 
     <!-- Dutch license plate colors -->
     <color name="plate_yellow">#F6B600</color>
