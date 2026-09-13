@@ -9,6 +9,7 @@ import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.FormBody
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -116,6 +117,13 @@ class TwoParkApi {
         })
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    // Shares the cookie jar but does not auto-follow redirects, so the payment
+    // provider's redirect URL can be captured and opened in the system browser.
+    private val noRedirectClient = client.newBuilder()
+        .followRedirects(false)
+        .followSslRedirects(false)
         .build()
 
     private val loginMutex = Mutex()
@@ -469,6 +477,62 @@ class TwoParkApi {
             method = data.optString("forwarding_method").ifBlank { "POST" },
             parameters = parameters,
         )
+    }
+
+    /**
+     * Resolve a URL that can be opened in the system browser for [forward].
+     *
+     * The payment handoff is normally a form POST, which a browser Intent
+     * cannot express. We therefore perform the initial request ourselves
+     * (without following redirects) and return the payment provider's
+     * redirect target. For GET handoffs we simply build the query URL.
+     */
+    suspend fun resolveTopupBrowserUrl(forward: TopupForward): String = withContext(Dispatchers.IO) {
+        val base = forward.url.toHttpUrlOrNull()
+            ?: throw TwoParkException("Invalid payment URL")
+
+        if (forward.method.equals("GET", ignoreCase = true)) {
+            val builder = base.newBuilder()
+            forward.parameters.forEach { (k, v) -> builder.addQueryParameter(k, v) }
+            return@withContext builder.build().toString()
+        }
+
+        val body = FormBody.Builder().apply {
+            forward.parameters.forEach { (k, v) -> add(k, v) }
+        }.build()
+        val request = Request.Builder()
+            .url(base)
+            .post(body)
+            .header("User-Agent", "Mozilla/5.0")
+            .build()
+
+        // Follow redirects manually so we can capture the URL to hand to the
+        // browser, and stop at the payment provider's landing page.
+        var current: Request? = request
+        var lastUrl = forward.url
+        var hops = 0
+        while (current != null && hops < 5) {
+            noRedirectClient.newCall(current).execute().use { resp ->
+                lastUrl = resp.request.url.toString()
+                val location = resp.header("Location")
+                if (resp.isRedirect && location != null) {
+                    val next = resp.request.url.resolve(location)
+                        ?: throw TwoParkException("Invalid payment redirect")
+                    lastUrl = next.toString()
+                    // Once we leave 2park, hand the provider URL to the browser.
+                    if (next.host != base.host || !next.host.endsWith("2park.nl")) {
+                        current = null
+                    } else {
+                        current = Request.Builder().url(next).get()
+                            .header("User-Agent", "Mozilla/5.0").build()
+                        hops++
+                    }
+                } else {
+                    current = null
+                }
+            }
+        }
+        lastUrl
     }
 
     /**

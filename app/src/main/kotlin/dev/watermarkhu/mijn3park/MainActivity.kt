@@ -2,6 +2,7 @@ package dev.watermarkhu.mijn3park
 
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -417,18 +418,9 @@ class MainActivity : AppCompatActivity() {
             try {
                 ensureLoggedIn()
                 val forward = api.startTopup(categoryId, prefs.productId, amount)
+                val browserUrl = api.resolveTopupBrowserUrl(forward)
                 refreshOnResume = true
-                startActivity(
-                    Intent(this@MainActivity, TopupActivity::class.java)
-                        .putExtra(TopupActivity.EXTRA_URL, forward.url)
-                        .putExtra(TopupActivity.EXTRA_METHOD, forward.method)
-                        .putExtra(
-                            TopupActivity.EXTRA_PARAMS,
-                            forward.parameters
-                                .flatMap { listOf(it.first, it.second) }
-                                .toTypedArray(),
-                        )
-                )
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }

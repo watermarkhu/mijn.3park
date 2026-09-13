@@ -20,7 +20,6 @@
             </intent-filter>
         </activity>
         <activity android:name=".LoginActivity" android:exported="false"/>
-        <activity android:name=".TopupActivity" android:exported="false"/>
         <service android:name=".ParkingService" android:exported="false"/>
     </application>
 </manifest>
