@@ -48,6 +48,14 @@ class MainActivity : AppCompatActivity() {
     private var serverMembers: List<Member> = emptyList()
     private var productDetails: ProductDetails? = null
     private var appliedDefaultProduct = false
+    private var refreshOnResume = false
+
+    private val currentProduct: Product?
+        get() = products.firstOrNull { it.id == prefs.productId }
+
+    /** Permit products (fixed plate) have no balance, no start/stop. */
+    private val isPermitProduct: Boolean
+        get() = productDetails?.fixedPlate != null || currentProduct?.hasFixedPlate == true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -116,6 +124,10 @@ class MainActivity : AppCompatActivity() {
             setBusy(false)
         }
         renderState()
+        if (refreshOnResume) {
+            refreshOnResume = false
+            refreshRemoteData()
+        }
     }
 
     override fun onPause() {
@@ -128,7 +140,16 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        menu.findItem(R.id.action_topup)?.isVisible = !isPermitProduct
+        return super.onPrepareOptionsMenu(menu)
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.action_topup -> {
+            showTopupDialog()
+            true
+        }
         R.id.action_refresh -> {
             loadProducts()
             refreshRemoteData()
@@ -216,6 +237,7 @@ class MainActivity : AppCompatActivity() {
         prefs.productId = product.id
         prefs.productName = product.displayName
         prefs.productLocation = product.location.orEmpty()
+        prefs.productCategoryId = product.categoryId
         productDropdown.setText(product.displayName, false)
         productDetails = null
         serverMembers = emptyList()
@@ -242,6 +264,7 @@ class MainActivity : AppCompatActivity() {
                 val members = details.members
                 serverMembers = members
                 renderPlateChips()
+                invalidateOptionsMenu()
 
                 // Prefill the fixed plate when the field is still empty.
                 details.fixedPlate?.let { fixed ->
@@ -260,10 +283,15 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
 
-                val balance = api.getBalance(prefs.productId)
-                prefs.lastBalance = balance.formatted
-                balanceText.text = getString(R.string.balance_label, balance.formatted)
-                balanceText.visibility = View.VISIBLE
+                // Permits are not prepaid: no balance to show or top up.
+                if (details.fixedPlate == null) {
+                    val balance = api.getBalance(prefs.productId)
+                    prefs.lastBalance = balance.formatted
+                    balanceText.text = getString(R.string.balance_label, balance.formatted)
+                    balanceText.visibility = View.VISIBLE
+                } else {
+                    balanceText.visibility = View.GONE
+                }
 
                 // Sync local state with the server (e.g. parking started/stopped elsewhere).
                 val activeMember = members.firstOrNull { it.active && it.actionId != null }
@@ -352,6 +380,59 @@ class MainActivity : AppCompatActivity() {
                 setOnClickListener { showFavoriteDialog(null) }
             }
         )
+    }
+
+    // --- Balance top-up ---
+
+    private fun showTopupDialog() {
+        if (isPermitProduct) {
+            Toast.makeText(this, R.string.topup_none, Toast.LENGTH_LONG).show()
+            return
+        }
+        lifecycleScope.launch {
+            try {
+                ensureLoggedIn()
+                val options = api.getTopupOptions(prefs.productId)
+                if (options.isEmpty()) {
+                    Toast.makeText(this@MainActivity, R.string.topup_none, Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                val labels = options.map { "€ " + it.replace('.', ',') }.toTypedArray()
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle(R.string.topup_title)
+                    .setItems(labels) { _, which -> startTopup(options[which]) }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun startTopup(amount: String) {
+        val categoryId = products.firstOrNull { it.id == prefs.productId }?.categoryId
+            ?.takeIf { it.isNotBlank() }
+            ?: prefs.productCategoryId
+        lifecycleScope.launch {
+            try {
+                ensureLoggedIn()
+                val forward = api.startTopup(categoryId, prefs.productId, amount)
+                refreshOnResume = true
+                startActivity(
+                    Intent(this@MainActivity, TopupActivity::class.java)
+                        .putExtra(TopupActivity.EXTRA_URL, forward.url)
+                        .putExtra(TopupActivity.EXTRA_METHOD, forward.method)
+                        .putExtra(
+                            TopupActivity.EXTRA_PARAMS,
+                            forward.parameters
+                                .flatMap { listOf(it.first, it.second) }
+                                .toTypedArray(),
+                        )
+                )
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     // --- Account favorites (named plates) ---
@@ -443,26 +524,32 @@ class MainActivity : AppCompatActivity() {
                 statusText.setText(R.string.status_idle)
             }
             toggleButton.setText(R.string.start_parking)
-            plateInput.isEnabled = true
+            plateInput.isEnabled = !isPermitProduct
             productDropdown.isEnabled = true
         }
 
-        // MD3 tonal states: primary container while parking, neutral otherwise.
+        // Permits are always-on: hide start/stop entirely (unless a session
+        // is somehow running, so it can still be stopped).
+        toggleButton.visibility = if (isPermitProduct && !parking) View.GONE else View.VISIBLE
+
+        // MD3 tonal states: primary container while parking or while the
+        // permit's fixed plate is covered, neutral otherwise.
+        val highlighted = parking || productDetails?.fixedPlateActive == true
         val cardBg = MaterialColors.getColor(
             statusCard,
-            if (parking) com.google.android.material.R.attr.colorPrimaryContainer
+            if (highlighted) com.google.android.material.R.attr.colorPrimaryContainer
             else com.google.android.material.R.attr.colorSurfaceContainerHighest,
         )
         val cardFg = MaterialColors.getColor(
             statusCard,
-            if (parking) com.google.android.material.R.attr.colorOnPrimaryContainer
+            if (highlighted) com.google.android.material.R.attr.colorOnPrimaryContainer
             else com.google.android.material.R.attr.colorOnSurface,
         )
         statusCard.setCardBackgroundColor(cardBg)
         statusText.setTextColor(cardFg)
         statusIcon.imageTintList = ColorStateList.valueOf(cardFg)
         balanceText.setTextColor(
-            if (parking) cardFg
+            if (highlighted) cardFg
             else MaterialColors.getColor(balanceText, com.google.android.material.R.attr.colorOnSurfaceVariant)
         )
 

@@ -33,6 +33,10 @@ class Prefs(context: Context) {
         get() = prefs.getString("product_location", "") ?: ""
         set(value) = prefs.edit().putString("product_location", value).apply()
 
+    var productCategoryId: String
+        get() = prefs.getString("product_category_id", "") ?: ""
+        set(value) = prefs.edit().putString("product_category_id", value).apply()
+
     /** Product preselected at app start; empty means "last used". */
     var defaultProductId: String
         get() = prefs.getString("default_product_id", "") ?: ""

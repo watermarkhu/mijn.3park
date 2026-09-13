@@ -50,6 +50,7 @@ class LoginActivity : AppCompatActivity() {
                         prefs.productId = first.id
                         prefs.productName = first.displayName
                         prefs.productLocation = first.location.orEmpty()
+                        prefs.productCategoryId = first.categoryId
                     }
 
                     startActivity(Intent(this@LoginActivity, MainActivity::class.java))

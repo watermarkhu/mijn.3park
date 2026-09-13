@@ -29,6 +29,7 @@ data class Product(
     val category: String,
     val location: String?,
     val options: String = "",
+    val categoryId: String = "",
 ) {
     val displayName: String
         get() = if (category.isNotBlank() && category != name) "$name ($category)" else name
@@ -56,6 +57,12 @@ data class ProductDetails(
      * plate override (LPN action) is active. Mirrors the web app logic.
      */
     val fixedPlateActive: Boolean,
+)
+
+data class TopupForward(
+    val url: String,
+    val method: String,
+    val parameters: List<Pair<String, String>>,
 )
 
 data class Balance(
@@ -225,6 +232,7 @@ class TwoParkApi {
         for (i in 0 until categories.length()) {
             val category = categories.optJSONObject(i) ?: continue
             val categoryName = category.optString("cty_name")
+            val categoryId = category.optString("cty_id")
             val ctyProducts = category.optJSONArray("cty_products") ?: continue
             for (j in 0 until ctyProducts.length()) {
                 val product = ctyProducts.optJSONObject(j) ?: continue
@@ -238,6 +246,7 @@ class TwoParkApi {
                         category = categoryName,
                         location = findDefaultLocation(product),
                         options = product.optString("pdt_options"),
+                        categoryId = categoryId,
                     )
                 )
             }
@@ -401,6 +410,65 @@ class TwoParkApi {
             )
             assertOk(payload, expectedMinor = "SUCCESS")
         }
+    }
+
+    /** Available top-up amounts (PAY_AMOUNT values like "10.00"). */
+    suspend fun getTopupOptions(productId: String): List<String> = withAuthRetry {
+        val payload = postForm(
+            "get_upgrade_units.json",
+            mapOf(
+                "product_id" to productId,
+                "locale" to LOCALE,
+                "startindex" to "1",
+                "stopindex" to "20",
+            ),
+        )
+        assertOk(payload, expectedMinor = "SUCCESS")
+        val units = payload.optJSONObject("data")?.optJSONArray("upgrade_units") ?: JSONArray()
+        val amounts = mutableListOf<String>()
+        for (i in 0 until units.length()) {
+            val params = units.optJSONObject(i)?.optJSONArray("uut_parameters") ?: continue
+            extractParam(params, "PAY_AMOUNT")?.let { amounts.add(it) }
+        }
+        amounts
+    }
+
+    /**
+     * Start a top-up payment. Returns the payment-provider forward data;
+     * the caller must submit [TopupForward.parameters] as a form to
+     * [TopupForward.url] (same as the website's hidden auto-submit form).
+     */
+    suspend fun startTopup(
+        categoryId: String,
+        productId: String,
+        payAmount: String,
+    ): TopupForward = withAuthRetry {
+        val payload = postForm(
+            "start_transaction.json",
+            mapOf(
+                "category_id" to categoryId,
+                "locale" to LOCALE,
+                "pay_amount" to payAmount,
+                "product_id" to productId,
+            ),
+        )
+        assertOk(payload)
+        val data = payload.optJSONObject("data")
+            ?: throw TwoParkException("No transaction data received")
+        val url = data.optString("forwarding_url")
+        if (url.isBlank()) throw TwoParkException("No payment URL received")
+
+        val parameters = mutableListOf<Pair<String, String>>()
+        val rawParams = data.optJSONArray("parameters") ?: JSONArray()
+        for (i in 0 until rawParams.length()) {
+            val param = rawParams.optJSONObject(i) ?: continue
+            parameters.add(param.optString("prr_label") to param.optString("prr_value"))
+        }
+        TopupForward(
+            url = url,
+            method = data.optString("forwarding_method").ifBlank { "POST" },
+            parameters = parameters,
+        )
     }
 
     /**

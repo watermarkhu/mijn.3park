@@ -37,6 +37,9 @@
     <string name="set_default_product">Use as default product</string>
     <string name="default_product_set">Default product: %1$s</string>
     <string name="menu_refresh">Refresh</string>
+    <string name="menu_topup">Top up balance</string>
+    <string name="topup_title">Top up balance</string>
+    <string name="topup_none">No top-up options available for this product</string>
     <string name="menu_logout">Log out</string>
 
     <!-- Notification -->
