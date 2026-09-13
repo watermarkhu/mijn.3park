@@ -520,7 +520,9 @@ class TwoParkApi {
                         ?: throw TwoParkException("Invalid payment redirect")
                     lastUrl = next.toString()
                     // Once we leave 2park, hand the provider URL to the browser.
-                    if (next.host != base.host || !next.host.endsWith("2park.nl")) {
+                    val stillOn2park =
+                        next.host == "2park.nl" || next.host.endsWith(".2park.nl")
+                    if (next.host != base.host || !stillOn2park) {
                         current = null
                     } else {
                         current = Request.Builder().url(next).get()

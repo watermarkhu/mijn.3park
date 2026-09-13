@@ -2,13 +2,56 @@ package dev.watermarkhu.mijn3park
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import org.json.JSONArray
+import java.io.File
 
-/** Simple app state persisted in private SharedPreferences. */
+/**
+ * App state persisted in AES256-GCM [EncryptedSharedPreferences], backed by a
+ * key in the Android Keystore. Protects the stored account credentials at rest.
+ */
 class Prefs(context: Context) {
 
-    private val prefs: SharedPreferences =
-        context.applicationContext.getSharedPreferences("mijn3park", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = createPrefs(context.applicationContext)
+
+    private fun createPrefs(context: Context): SharedPreferences {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        return try {
+            buildEncrypted(context, masterKey)
+        } catch (e: Exception) {
+            // Keystore key or backing file became unreadable (e.g. corruption):
+            // discard and recreate so the app stays usable. Requires re-login.
+            deletePrefs(context)
+            buildEncrypted(context, masterKey)
+        }
+    }
+
+    private fun deletePrefs(context: Context) {
+        if (Build.VERSION.SDK_INT >= 24) {
+            context.deleteSharedPreferences(PREFS_NAME)
+        } else {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().clear().commit()
+            File(File(context.applicationInfo.dataDir, "shared_prefs"), "$PREFS_NAME.xml").delete()
+        }
+    }
+
+    private fun buildEncrypted(context: Context, masterKey: MasterKey): SharedPreferences =
+        EncryptedSharedPreferences.create(
+            context,
+            PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+        )
+
+    private companion object {
+        const val PREFS_NAME = "mijn3park_secure"
+    }
 
     var email: String
         get() = prefs.getString("email", "") ?: ""
