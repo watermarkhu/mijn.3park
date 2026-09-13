@@ -12,7 +12,10 @@
     <!-- Main -->
     <string name="product">Product</string>
     <string name="license_plate">License plate</string>
+    <string name="plate_hint">XX-99-XX</string>
+    <string name="plate_country">NL</string>
     <string name="saved_plates">Saved plates</string>
+    <string name="balance_label">Balance: %1$s</string>
     <string name="start_parking">Start parking</string>
     <string name="stop_parking">Stop parking</string>
     <string name="status_idle">Not parking</string>
@@ -27,6 +30,7 @@
     <string name="notification_channel_description">Shown while parking is active</string>
     <string name="notification_title">Parking active</string>
     <string name="notification_text">%1$s · since %2$s</string>
+    <string name="notification_text_balance">%1$s · since %2$s · balance %3$s</string>
     <string name="notification_starting">Starting parking…</string>
     <string name="notification_stopping">Stopping parking…</string>
     <string name="notification_renew_failed">Renewal failed, will retry: %1$s</string>

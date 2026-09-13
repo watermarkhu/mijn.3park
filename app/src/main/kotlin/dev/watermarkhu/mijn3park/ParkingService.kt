@@ -129,6 +129,7 @@ class ParkingService : Service() {
                 prefs.activePlate = plate
                 prefs.activeSince = System.currentTimeMillis()
                 lastError = null
+                refreshBalance()
                 notify(activeNotification())
                 scheduleMidnightRenewal()
                 onStateChanged?.invoke()
@@ -156,6 +157,7 @@ class ParkingService : Service() {
                     }
                 }
                 lastError = null
+                refreshBalance()
                 notify(activeNotification())
                 scheduleMidnightRenewal()
                 onStateChanged?.invoke()
@@ -197,6 +199,16 @@ class ParkingService : Service() {
     private suspend fun ensureCredentials() {
         if (api.email.isBlank()) {
             api.login(prefs.email, prefs.password)
+        }
+    }
+
+    /** Best-effort balance refresh for display purposes; never fails the caller. */
+    private suspend fun refreshBalance() {
+        try {
+            val balance = withContext(Dispatchers.IO) { api.getBalance(prefs.productId) }
+            prefs.lastBalance = balance.formatted
+        } catch (e: Exception) {
+            // Keep the previous known balance.
         }
     }
 
@@ -268,11 +280,13 @@ class ParkingService : Service() {
 
     private fun activeNotification(): Notification {
         val since = SimpleDateFormat("HH:mm", Locale.ROOT).format(Date(prefs.activeSince))
-        return buildNotification(
-            getString(R.string.notification_text, prefs.activePlate, since),
-            prefs.activePlate,
-            showStop = true,
-        )
+        val balance = prefs.lastBalance
+        val text = if (balance.isNotBlank()) {
+            getString(R.string.notification_text_balance, prefs.activePlate, since, balance)
+        } else {
+            getString(R.string.notification_text, prefs.activePlate, since)
+        }
+        return buildNotification(text, prefs.activePlate, showStop = true)
     }
 
     private fun buildNotification(text: String, plate: String, showStop: Boolean = false): Notification {

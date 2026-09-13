@@ -55,6 +55,11 @@ class Prefs(context: Context) {
         savedPlates = (listOf(normalized) + savedPlates.filter { it != normalized }).take(10)
     }
 
+    /** Last known account balance, formatted for display (e.g. "€ 12,34"). */
+    var lastBalance: String
+        get() = prefs.getString("last_balance", "") ?: ""
+        set(value) = prefs.edit().putString("last_balance", value).apply()
+
     // Active parking session state, kept in sync by ParkingService.
 
     var activePlate: String

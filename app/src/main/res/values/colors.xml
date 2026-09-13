@@ -3,4 +3,10 @@
     <color name="primary">#FF6750A4</color>
     <color name="on_primary">#FFFFFFFF</color>
     <color name="ic_launcher_background">#3DDC84</color>
+
+    <!-- Dutch license plate colors -->
+    <color name="plate_yellow">#F6B600</color>
+    <color name="plate_blue">#003399</color>
+    <color name="plate_text">#0F0F0F</color>
+    <color name="plate_hint">#80663D00</color>
 </resources>

@@ -17,7 +17,7 @@
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="24dp"
             android:hint="@string/product">
 
             <com.google.android.material.textfield.MaterialAutoCompleteTextView
@@ -27,20 +27,45 @@
                 android:inputType="none"/>
         </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/plateLayout"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        <!-- Dutch license plate input -->
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:hint="@string/license_plate">
+            android:layout_height="80dp"
+            android:layout_marginBottom="12dp">
 
             <com.google.android.material.textfield.MaterialAutoCompleteTextView
                 android:id="@+id/plateInput"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textCapCharacters|textNoSuggestions"/>
-        </com.google.android.material.textfield.TextInputLayout>
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_plate"
+                android:gravity="center"
+                android:hint="@string/plate_hint"
+                android:inputType="textCapCharacters|textNoSuggestions"
+                android:maxLength="8"
+                android:paddingStart="52dp"
+                android:paddingEnd="16dp"
+                android:fontFamily="sans-serif-condensed"
+                android:textStyle="bold"
+                android:letterSpacing="0.12"
+                android:textSize="36sp"
+                android:textColor="@color/plate_text"
+                android:textColorHint="@color/plate_hint"
+                android:importantForAutofill="no"/>
+
+            <TextView
+                android:layout_width="36dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="2dp"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="2dp"
+                android:background="@drawable/bg_plate_strip"
+                android:gravity="center_horizontal|bottom"
+                android:paddingBottom="10dp"
+                android:text="@string/plate_country"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold"/>
+        </FrameLayout>
 
         <HorizontalScrollView
             android:layout_width="match_parent"
@@ -60,10 +85,19 @@
             android:id="@+id/statusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="4dp"
             android:gravity="center"
             android:text="@string/status_idle"
             android:textAppearance="?attr/textAppearanceTitleMedium"/>
+
+        <TextView
+            android:id="@+id/balanceText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:gravity="center"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:visibility="gone"/>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/toggleButton"

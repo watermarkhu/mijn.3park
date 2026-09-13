@@ -32,7 +32,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toggleButton: MaterialButton
     private lateinit var progress: LinearProgressIndicator
 
+    private lateinit var balanceText: TextView
+
     private var products: List<Product> = emptyList()
+    private var serverMembers: List<Member> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +55,12 @@ class MainActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         toggleButton = findViewById(R.id.toggleButton)
         progress = findViewById(R.id.progress)
+        balanceText = findViewById(R.id.balanceText)
+
+        if (prefs.lastBalance.isNotBlank()) {
+            balanceText.text = getString(R.string.balance_label, prefs.lastBalance)
+            balanceText.visibility = View.VISIBLE
+        }
 
         productDropdown.setText(prefs.productName, false)
         productDropdown.setOnItemClickListener { _, _, position, _ ->
@@ -170,8 +179,10 @@ class MainActivity : AppCompatActivity() {
             try {
                 ensureLoggedIn()
                 val members = api.getMembers(prefs.productId)
+                serverMembers = members
+                renderPlateChips()
 
-                val suggestions = (prefs.savedPlates + members.map { it.plate }).distinct()
+                val suggestions = (members.map { it.plate } + prefs.savedPlates).distinct()
                 plateInput.setAdapter(
                     ArrayAdapter(
                         this@MainActivity,
@@ -179,6 +190,11 @@ class MainActivity : AppCompatActivity() {
                         suggestions,
                     )
                 )
+
+                val balance = api.getBalance(prefs.productId)
+                prefs.lastBalance = balance.formatted
+                balanceText.text = getString(R.string.balance_label, balance.formatted)
+                balanceText.visibility = View.VISIBLE
 
                 // Sync local state with the server (e.g. parking started/stopped elsewhere).
                 val activeMember = members.firstOrNull { it.active && it.actionId != null }
@@ -207,7 +223,20 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderPlateChips() {
         plateChips.removeAllViews()
-        prefs.savedPlates.forEach { plate ->
+
+        // Plates saved on the 2park account (with nickname when set).
+        val serverPlates = serverMembers.map { it.plate }.toSet()
+        serverMembers.forEach { member ->
+            val chip = Chip(this).apply {
+                text = member.nickname?.let { "$it · ${member.plate}" } ?: member.plate
+                isCheckable = true
+                setOnClickListener { plateInput.setText(member.plate, false) }
+            }
+            plateChips.addView(chip)
+        }
+
+        // Locally remembered plates not already on the account (removable).
+        prefs.savedPlates.filter { it !in serverPlates }.forEach { plate ->
             val chip = Chip(this).apply {
                 text = plate
                 isCheckable = true

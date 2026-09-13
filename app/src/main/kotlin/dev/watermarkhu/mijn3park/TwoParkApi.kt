@@ -42,6 +42,15 @@ data class Member(
     val timeEnd: String?,
 )
 
+data class Balance(
+    val amount: Double?,
+    val currency: String,
+    val lastModified: String?,
+) {
+    val formatted: String
+        get() = amount?.let { String.format(Locale("nl", "NL"), "%s %.2f", currency, it) } ?: "—"
+}
+
 /**
  * Async client for the undocumented mijn.2park.nl web endpoints.
  *
@@ -268,6 +277,22 @@ class TwoParkApi {
             )
         }
         return result
+    }
+
+    suspend fun getBalance(productId: String): Balance = withAuthRetry {
+        val payload = postForm(
+            "get_balance.json",
+            mapOf("product_id" to productId, "locale" to LOCALE),
+        )
+        assertOk(payload, expectedMinor = "SUCCESS")
+        val params = payload.optJSONObject("data")
+            ?.optJSONObject("balance")
+            ?.optJSONArray("ble_parameters")
+        Balance(
+            amount = extractParam(params, "AMOUNT")?.toDoubleOrNull(),
+            currency = extractParam(params, "CURRENCY_DESC") ?: "€",
+            lastModified = extractParam(params, "LAST_MODIFIED"),
+        )
     }
 
     suspend fun findActiveMember(productId: String, plate: String): Member? {
