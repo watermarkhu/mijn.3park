@@ -403,6 +403,49 @@ class TwoParkApi {
         }
     }
 
+    /**
+     * Add or remove a named plate (favorite) on the account.
+     * Mirrors the web app: data={"favorite":{"fav_parameters":[{NICKNAME}],"action":add|remove,"mbr_ident":plate}}
+     */
+    private suspend fun handleFavorite(
+        productId: String,
+        action: String,
+        plate: String,
+        nickname: String?,
+    ) {
+        val data = JSONObject().put(
+            "favorite",
+            JSONObject()
+                .put(
+                    "fav_parameters",
+                    JSONArray().put(
+                        JSONObject()
+                            .put("prr_label", "NICKNAME")
+                            .put("prr_value", nickname.orEmpty())
+                    )
+                )
+                .put("action", action)
+                .put("mbr_ident", normalizePlate(plate))
+        )
+        withAuthRetry {
+            val payload = postForm(
+                "handle_favorite.json",
+                mapOf(
+                    "data" to data.toString(),
+                    "locale" to LOCALE,
+                    "product_id" to productId,
+                ),
+            )
+            assertOk(payload, expectedMinor = "SUCCESS")
+        }
+    }
+
+    suspend fun addFavorite(productId: String, plate: String, nickname: String?) =
+        handleFavorite(productId, "add", plate, nickname)
+
+    suspend fun removeFavorite(productId: String, plate: String, nickname: String?) =
+        handleFavorite(productId, "remove", plate, nickname)
+
     /** Stop any active action for [plate]. Returns true if something was stopped. */
     suspend fun stop(productId: String, plate: String): Boolean {
         val member = findActiveMember(productId, plate) ?: return false

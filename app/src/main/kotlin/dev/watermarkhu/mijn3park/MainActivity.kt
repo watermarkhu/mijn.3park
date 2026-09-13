@@ -14,6 +14,8 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import kotlinx.coroutines.launch
@@ -300,6 +302,10 @@ class MainActivity : AppCompatActivity() {
                 text = member.nickname?.let { "$it · ${member.plate}" } ?: member.plate
                 isCheckable = true
                 setOnClickListener { plateInput.setText(member.plate, false) }
+                setOnLongClickListener {
+                    showFavoriteDialog(member)
+                    true
+                }
             }
             plateChips.addView(chip)
         }
@@ -315,8 +321,94 @@ class MainActivity : AppCompatActivity() {
                     prefs.savedPlates = prefs.savedPlates.filter { it != plate }
                     renderPlateChips()
                 }
+                setOnLongClickListener {
+                    // Promote a local plate to an account favorite.
+                    showFavoriteDialog(null, prefillPlate = plate)
+                    true
+                }
             }
             plateChips.addView(chip)
+        }
+
+        // "+" chip to save a new named plate to the account.
+        plateChips.addView(
+            Chip(this).apply {
+                text = "+"
+                contentDescription = getString(R.string.add_plate)
+                setOnClickListener { showFavoriteDialog(null) }
+            }
+        )
+    }
+
+    // --- Account favorites (named plates) ---
+
+    private fun showFavoriteDialog(member: Member?, prefillPlate: String? = null) {
+        val view = layoutInflater.inflate(R.layout.dialog_favorite, null)
+        val plateField = view.findViewById<TextInputEditText>(R.id.favPlate)
+        val nameField = view.findViewById<TextInputEditText>(R.id.favName)
+
+        if (member != null) {
+            plateField.setText(member.plate)
+            nameField.setText(member.nickname.orEmpty())
+        } else {
+            plateField.setText(
+                prefillPlate ?: normalizePlate(plateInput.text?.toString().orEmpty())
+            )
+        }
+
+        val builder = MaterialAlertDialogBuilder(this)
+            .setTitle(if (member == null) R.string.add_plate else R.string.edit_plate)
+            .setView(view)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val plate = normalizePlate(plateField.text?.toString().orEmpty())
+                val name = nameField.text?.toString()?.trim().orEmpty()
+                if (plate.isBlank()) {
+                    Toast.makeText(this, R.string.error_no_plate, Toast.LENGTH_SHORT).show()
+                } else {
+                    saveFavorite(member, plate, name)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+
+        if (member != null) {
+            builder.setNeutralButton(R.string.delete) { _, _ -> deleteFavorite(member) }
+        }
+        builder.show()
+    }
+
+    private fun saveFavorite(existing: Member?, plate: String, name: String) {
+        lifecycleScope.launch {
+            try {
+                ensureLoggedIn()
+                if (existing != null) {
+                    if (existing.plate == plate && existing.nickname.orEmpty() == name) {
+                        return@launch // nothing changed
+                    }
+                    // The API has no update: replace by remove + add.
+                    api.removeFavorite(prefs.productId, existing.plate, existing.nickname)
+                }
+                api.addFavorite(prefs.productId, plate, name.ifBlank { null })
+                // No longer needed as a local-only plate.
+                prefs.savedPlates = prefs.savedPlates.filter { it != plate }
+                Toast.makeText(this@MainActivity, R.string.favorite_saved, Toast.LENGTH_SHORT).show()
+                refreshRemoteData()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
+                refreshRemoteData()
+            }
+        }
+    }
+
+    private fun deleteFavorite(member: Member) {
+        lifecycleScope.launch {
+            try {
+                ensureLoggedIn()
+                api.removeFavorite(prefs.productId, member.plate, member.nickname)
+                Toast.makeText(this@MainActivity, R.string.favorite_deleted, Toast.LENGTH_SHORT).show()
+                refreshRemoteData()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
+            }
         }
     }
 
