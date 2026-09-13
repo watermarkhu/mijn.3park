@@ -1,7 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">mijn.3park</string>
-    <string name="hello_world">Hello, Material You!</string>
-    <string name="fab_description">Add</string>
-    <string name="fab_clicked">FAB clicked</string>
+
+    <!-- Login -->
+    <string name="login_title">Log in with mijn.2park.nl</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="login">Log in</string>
+    <string name="login_failed">Login failed: %1$s</string>
+
+    <!-- Main -->
+    <string name="product">Product</string>
+    <string name="license_plate">License plate</string>
+    <string name="saved_plates">Saved plates</string>
+    <string name="start_parking">Start parking</string>
+    <string name="stop_parking">Stop parking</string>
+    <string name="status_idle">Not parking</string>
+    <string name="status_active">Parking active for %1$s since %2$s</string>
+    <string name="error_no_plate">Enter or select a license plate</string>
+    <string name="error_no_product">Select a product first</string>
+    <string name="menu_refresh">Refresh</string>
+    <string name="menu_logout">Log out</string>
+
+    <!-- Notification -->
+    <string name="notification_channel_name">Active parking</string>
+    <string name="notification_channel_description">Shown while parking is active</string>
+    <string name="notification_title">Parking active</string>
+    <string name="notification_text">%1$s · since %2$s</string>
+    <string name="notification_starting">Starting parking…</string>
+    <string name="notification_stopping">Stopping parking…</string>
+    <string name="notification_renew_failed">Renewal failed, will retry: %1$s</string>
+    <string name="notification_stop_failed">Stop failed: %1$s</string>
+    <string name="notification_action_stop">Stop</string>
 </resources>

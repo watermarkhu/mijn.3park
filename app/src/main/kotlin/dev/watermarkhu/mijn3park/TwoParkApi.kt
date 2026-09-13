@@ -1,0 +1,343 @@
+package dev.watermarkhu.mijn3park
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.FormBody
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONArray
+import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+
+class TwoParkException(message: String) : Exception(message)
+
+fun normalizePlate(plate: String): String =
+    plate.trim().uppercase(Locale.ROOT).replace("-", "").replace(" ", "")
+
+data class Product(
+    val id: String,
+    val name: String,
+    val category: String,
+    val location: String?,
+) {
+    val displayName: String
+        get() = if (category.isNotBlank() && category != name) "$name ($category)" else name
+}
+
+data class Member(
+    val plate: String,
+    val nickname: String?,
+    val active: Boolean,
+    val actionId: String?,
+    val timeStart: String?,
+    val timeEnd: String?,
+)
+
+/**
+ * Async client for the undocumented mijn.2park.nl web endpoints.
+ *
+ * Session state is cookie based; the in-memory cookie jar lives as long as the
+ * process, and every call transparently re-authenticates when the session has
+ * expired.
+ */
+class TwoParkApi {
+
+    companion object {
+        const val BASE_URL = "https://mijn.2park.nl"
+        const val LOCALE = "nl_NL"
+        private val TIME_FORMAT = "dd-MM-yyyy HH:mm:ss"
+        private val DATE_FORMAT = "dd-MM-yyyy"
+
+        // Shared instance so MainActivity and ParkingService reuse one session.
+        val instance: TwoParkApi by lazy { TwoParkApi() }
+
+        fun nowTimestamp(): String =
+            SimpleDateFormat(TIME_FORMAT, Locale.ROOT).format(Date())
+
+        fun endOfTodayTimestamp(): String =
+            SimpleDateFormat(DATE_FORMAT, Locale.ROOT).format(Date()) + " 23:59:59"
+    }
+
+    private val cookieStore = mutableMapOf<String, List<Cookie>>()
+
+    private val client = OkHttpClient.Builder()
+        .cookieJar(object : CookieJar {
+            override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+                synchronized(cookieStore) {
+                    val existing = cookieStore[url.host].orEmpty()
+                        .filter { old -> cookies.none { it.name == old.name } }
+                    cookieStore[url.host] = existing + cookies
+                }
+            }
+
+            override fun loadForRequest(url: HttpUrl): List<Cookie> =
+                synchronized(cookieStore) { cookieStore[url.host].orEmpty() }
+        })
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    private val loginMutex = Mutex()
+
+    @Volatile
+    private var loggedIn = false
+
+    var email: String = ""
+    var password: String = ""
+
+    private suspend fun postForm(endpoint: String, fields: Map<String, String>): JSONObject =
+        withContext(Dispatchers.IO) {
+            val url = "$BASE_URL/gsmpark-app-www/json/$endpoint"
+            val body = FormBody.Builder().apply {
+                fields.forEach { (k, v) -> add(k, v) }
+            }.build()
+            val request = Request.Builder()
+                .url(url)
+                .post(body)
+                .header("Accept", "*/*")
+                .header("Origin", BASE_URL)
+                .header("Referer", "$BASE_URL/")
+                .header("User-Agent", "Mozilla/5.0")
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw TwoParkException("HTTP ${response.code} for $endpoint")
+                }
+                val text = response.body?.string()
+                    ?: throw TwoParkException("Empty response from $endpoint")
+                try {
+                    JSONObject(text)
+                } catch (e: Exception) {
+                    throw TwoParkException("Invalid JSON from $endpoint")
+                }
+            }
+        }
+
+    private fun assertOk(payload: JSONObject, expectedMinor: String? = null) {
+        val status = payload.optJSONObject("status") ?: JSONObject()
+        val code = status.optJSONObject("code") ?: JSONObject()
+        val major = code.optString("major")
+        val minor = code.optString("minor")
+        val message = status.optString("message")
+
+        if (major != "OK") {
+            throw TwoParkException("2Park error: major=$major, minor=$minor, message=$message")
+        }
+        if (expectedMinor != null && minor != expectedMinor) {
+            throw TwoParkException("Unexpected 2Park status: expected $expectedMinor, got $minor")
+        }
+    }
+
+    suspend fun login(email: String, password: String) {
+        this.email = email
+        this.password = password
+        loginMutex.withLock { doLogin() }
+    }
+
+    private suspend fun doLogin() {
+        if (email.isBlank() || password.isBlank()) {
+            throw TwoParkException("No credentials configured")
+        }
+        val payload = postForm(
+            "check_credentials.json",
+            mapOf("email" to email, "password" to password, "locale" to LOCALE),
+        )
+        assertOk(payload, expectedMinor = "AUTHENTICATED")
+        loggedIn = true
+    }
+
+    private suspend fun ensureLoggedIn() {
+        if (loggedIn) return
+        loginMutex.withLock {
+            if (!loggedIn) doLogin()
+        }
+    }
+
+    /** Run [block]; on failure assume the session expired, re-login and retry once. */
+    private suspend fun <T> withAuthRetry(block: suspend () -> T): T {
+        ensureLoggedIn()
+        return try {
+            block()
+        } catch (e: TwoParkException) {
+            loggedIn = false
+            ensureLoggedIn()
+            block()
+        }
+    }
+
+    private fun findDefaultLocation(product: JSONObject): String? {
+        val groups = product.optJSONArray("pdt_parameter_groups") ?: return null
+        for (i in 0 until groups.length()) {
+            val group = groups.optJSONObject(i) ?: continue
+            if (group.optString("pgp_label") != "START") continue
+            val params = group.optJSONArray("pgp_parameters") ?: continue
+            for (j in 0 until params.length()) {
+                val param = params.optJSONObject(j) ?: continue
+                if (param.optString("prr_label") == "LOCATION") {
+                    return param.optString("prr_default_value").takeIf { it.isNotBlank() }
+                }
+            }
+        }
+        return null
+    }
+
+    suspend fun getProducts(): List<Product> = withAuthRetry {
+        val payload = postForm("get_categories.json", mapOf("locale" to LOCALE))
+        assertOk(payload, expectedMinor = "SUCCESS")
+
+        val products = mutableListOf<Product>()
+        val categories = payload.optJSONObject("data")?.optJSONArray("categories") ?: JSONArray()
+        for (i in 0 until categories.length()) {
+            val category = categories.optJSONObject(i) ?: continue
+            val categoryName = category.optString("cty_name")
+            val ctyProducts = category.optJSONArray("cty_products") ?: continue
+            for (j in 0 until ctyProducts.length()) {
+                val product = ctyProducts.optJSONObject(j) ?: continue
+                if (product.optString("pdt_is_blocked") == "true") continue
+                val id = product.optString("pdt_id")
+                if (id.isBlank()) continue
+                products.add(
+                    Product(
+                        id = id,
+                        name = product.optString("pdt_name"),
+                        category = categoryName,
+                        location = findDefaultLocation(product),
+                    )
+                )
+            }
+        }
+        if (products.isEmpty()) throw TwoParkException("No usable 2Park product found")
+        products
+    }
+
+    private suspend fun getProductDetails(productId: String): JSONObject = withAuthRetry {
+        val payload = postForm(
+            "get_category_product_details.json",
+            mapOf("product_id" to productId, "locale" to LOCALE),
+        )
+        assertOk(payload, expectedMinor = "SUCCESS")
+        payload
+    }
+
+    private fun extractParam(params: JSONArray?, label: String): String? {
+        if (params == null) return null
+        for (i in 0 until params.length()) {
+            val param = params.optJSONObject(i) ?: continue
+            if (param.optString("prr_label") == label) {
+                return param.optString("prr_value").takeIf { it.isNotBlank() }
+            }
+        }
+        return null
+    }
+
+    private fun extractActiveAction(member: JSONObject): JSONObject? {
+        val actions = member.optJSONArray("mbr_actions") ?: return null
+        for (i in 0 until actions.length()) {
+            val action = actions.optJSONObject(i) ?: continue
+            if (action.optString("atn_state") == "ACTIVE") return action
+        }
+        return null
+    }
+
+    suspend fun getMembers(productId: String): List<Member> {
+        val details = getProductDetails(productId)
+        val members = details.optJSONObject("data")?.optJSONArray("pdt_members") ?: JSONArray()
+        val result = mutableListOf<Member>()
+        for (i in 0 until members.length()) {
+            val member = members.optJSONObject(i) ?: continue
+            val action = extractActiveAction(member)
+            result.add(
+                Member(
+                    plate = normalizePlate(member.optString("mbr_identifier")),
+                    nickname = extractParam(member.optJSONArray("mbr_parameters"), "NICKNAME"),
+                    active = member.optString("mbr_active") == "YES",
+                    actionId = action?.optString("atn_id")?.takeIf { it.isNotBlank() },
+                    timeStart = extractParam(action?.optJSONArray("atn_parameters"), "TIMESTART"),
+                    timeEnd = extractParam(action?.optJSONArray("atn_parameters"), "TIMEEND"),
+                )
+            )
+        }
+        return result
+    }
+
+    suspend fun findActiveMember(productId: String, plate: String): Member? {
+        val plateNorm = normalizePlate(plate)
+        return getMembers(productId).firstOrNull { it.plate == plateNorm && it.active && it.actionId != null }
+    }
+
+    /**
+     * Start parking now until 23:59:59 today.
+     *
+     * The web API treats "today" differently from planning future days: a
+     * simple start action always ends at midnight. Parking that must span
+     * multiple days is handled by re-issuing a start action after midnight
+     * (see [ParkingService]).
+     *
+     * Returns the action id of the newly started (verified) action.
+     */
+    suspend fun start(productId: String, location: String?, plate: String): String {
+        val plateNorm = normalizePlate(plate)
+        val action = JSONObject().put(
+            "action",
+            JSONObject().put(
+                "atn_parameters",
+                JSONArray().apply {
+                    put(JSONObject().put("prr_label", "MBR_IDENT").put("prr_value", plateNorm))
+                    put(JSONObject().put("prr_label", "TIMESTART").put("prr_value", nowTimestamp()))
+                    put(JSONObject().put("prr_label", "TIMEEND").put("prr_value", endOfTodayTimestamp()))
+                    put(JSONObject().put("prr_label", "LOCATION").put("prr_value", location ?: ""))
+                }
+            )
+        )
+
+        withAuthRetry {
+            val payload = postForm(
+                "start_action.json",
+                mapOf(
+                    "data" to action.toString(),
+                    "locale" to LOCALE,
+                    "product_id" to productId,
+                ),
+            )
+            assertOk(payload)
+        }
+
+        // Verify the action is actually active and fetch its id.
+        repeat(3) {
+            findActiveMember(productId, plateNorm)?.actionId?.let { return it }
+            delay(1000)
+        }
+        throw TwoParkException("Start not confirmed for $plateNorm")
+    }
+
+    suspend fun stopAction(productId: String, actionId: String) {
+        withAuthRetry {
+            val payload = postForm(
+                "stop_action.json",
+                mapOf(
+                    "action_id" to actionId,
+                    "locale" to LOCALE,
+                    "product_id" to productId,
+                ),
+            )
+            assertOk(payload, expectedMinor = "SUCCESS")
+        }
+    }
+
+    /** Stop any active action for [plate]. Returns true if something was stopped. */
+    suspend fun stop(productId: String, plate: String): Boolean {
+        val member = findActiveMember(productId, plate) ?: return false
+        stopAction(productId, member.actionId!!)
+        return true
+    }
+}

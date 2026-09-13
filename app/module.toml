@@ -34,10 +34,17 @@ res = ["src/release/res"]
 resources = ["src/release/resources"]
 
 [dependencies]
-implementation = ["kotlin-stdlib", "com.google.android.material:material:1.12.0"]
+implementation = [
+    "kotlin-stdlib",
+    "com.google.android.material:material:1.12.0",
+    "androidx.appcompat:appcompat:1.7.0",
+    "androidx.lifecycle:lifecycle-runtime-ktx:2.8.7",
+    "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1",
+    "com.squareup.okhttp3:okhttp:4.12.0",
+]
 
 [android]
-namespace = "com.example.mijn3park"
+namespace = "dev.watermarkhu.mijn3park"
 compileSdk = 36
 minSdk = 21
 targetSdk = 30
