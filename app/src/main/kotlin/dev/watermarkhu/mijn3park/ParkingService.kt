@@ -297,7 +297,7 @@ class ParkingService : Service() {
         )
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setSmallIcon(R.drawable.ic_car)
             .setContentTitle(getString(R.string.notification_title))
             .setContentText(text)
             .setContentIntent(contentIntent)

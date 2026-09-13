@@ -1,17 +1,21 @@
 package dev.watermarkhu.mijn3park
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.CheckBox
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -36,7 +40,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progress: LinearProgressIndicator
 
     private lateinit var balanceText: TextView
-    private lateinit var defaultProductStar: CheckBox
+    private lateinit var defaultProductStar: MaterialButton
+    private lateinit var statusCard: MaterialCardView
+    private lateinit var statusIcon: ImageView
 
     private var products: List<Product> = emptyList()
     private var serverMembers: List<Member> = emptyList()
@@ -54,6 +60,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContentView(R.layout.activity_main)
+        setSupportActionBar(findViewById<MaterialToolbar>(R.id.toolbar))
 
         productDropdown = findViewById(R.id.productDropdown)
         plateInput = findViewById(R.id.plateInput)
@@ -62,6 +69,8 @@ class MainActivity : AppCompatActivity() {
         toggleButton = findViewById(R.id.toggleButton)
         progress = findViewById(R.id.progress)
         balanceText = findViewById(R.id.balanceText)
+        statusCard = findViewById(R.id.statusCard)
+        statusIcon = findViewById(R.id.statusIcon)
 
         defaultProductStar = findViewById(R.id.defaultProductStar)
 
@@ -333,7 +342,12 @@ class MainActivity : AppCompatActivity() {
         // "+" chip to save a new named plate to the account.
         plateChips.addView(
             Chip(this).apply {
-                text = "+"
+                text = getString(R.string.add)
+                setChipIconResource(R.drawable.ic_add)
+                isChipIconVisible = true
+                chipIconTint = ColorStateList.valueOf(
+                    MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary)
+                )
                 contentDescription = getString(R.string.add_plate)
                 setOnClickListener { showFavoriteDialog(null) }
             }
@@ -413,7 +427,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderState() {
-        if (prefs.isParking) {
+        val parking = prefs.isParking
+        if (parking) {
             val since = SimpleDateFormat("HH:mm", Locale.ROOT).format(Date(prefs.activeSince))
             statusText.text = getString(R.string.status_active, prefs.activePlate, since)
             toggleButton.setText(R.string.stop_parking)
@@ -431,6 +446,41 @@ class MainActivity : AppCompatActivity() {
             plateInput.isEnabled = true
             productDropdown.isEnabled = true
         }
+
+        // MD3 tonal states: primary container while parking, neutral otherwise.
+        val cardBg = MaterialColors.getColor(
+            statusCard,
+            if (parking) com.google.android.material.R.attr.colorPrimaryContainer
+            else com.google.android.material.R.attr.colorSurfaceContainerHighest,
+        )
+        val cardFg = MaterialColors.getColor(
+            statusCard,
+            if (parking) com.google.android.material.R.attr.colorOnPrimaryContainer
+            else com.google.android.material.R.attr.colorOnSurface,
+        )
+        statusCard.setCardBackgroundColor(cardBg)
+        statusText.setTextColor(cardFg)
+        statusIcon.imageTintList = ColorStateList.valueOf(cardFg)
+        balanceText.setTextColor(
+            if (parking) cardFg
+            else MaterialColors.getColor(balanceText, com.google.android.material.R.attr.colorOnSurfaceVariant)
+        )
+
+        // Stop is a destructive action: switch the button to error tones.
+        toggleButton.backgroundTintList = ColorStateList.valueOf(
+            MaterialColors.getColor(
+                toggleButton,
+                if (parking) com.google.android.material.R.attr.colorError
+                else com.google.android.material.R.attr.colorPrimary,
+            )
+        )
+        toggleButton.setTextColor(
+            MaterialColors.getColor(
+                toggleButton,
+                if (parking) com.google.android.material.R.attr.colorOnError
+                else com.google.android.material.R.attr.colorOnPrimary,
+            )
+        )
     }
 
     private fun setBusy(busy: Boolean) {

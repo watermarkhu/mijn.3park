@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.App" parent="Theme.Material3.DynamicColors.DayNight">
-        <item name="colorPrimary">@color/primary</item>
-        <item name="colorOnPrimary">@color/on_primary</item>
-    </style>
+    <!-- No color overrides: let Material You dynamic color do its thing. -->
+    <style name="Theme.App" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar"/>
 </resources>

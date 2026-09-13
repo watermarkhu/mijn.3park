@@ -16,9 +16,17 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
+            android:layout_marginBottom="8dp"
+            android:text="@string/app_name"
+            android:textAppearance="?attr/textAppearanceDisplaySmall"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="32dp"
             android:text="@string/login_title"
-            android:textAppearance="?attr/textAppearanceHeadlineSmall"/>
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="?attr/colorOnSurfaceVariant"/>
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/emailLayout"
@@ -54,8 +62,10 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/loginButton"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/login"/>
+            android:layout_height="56dp"
+            android:text="@string/login"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            app:cornerRadius="28dp"/>
 
         <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/loginProgress"
