@@ -36,6 +36,14 @@
     <string name="topup_title">Saldo opwaarderen</string>
     <string name="topup_none">Geen opwaardeeropties beschikbaar voor dit product</string>
     <string name="menu_logout">Uitloggen</string>
+    <string name="session_expired">Sessie verlopen, je bent uitgelogd</string>
+    <string name="set_end_time">Eindtijd instellen (optioneel)</string>
+    <string name="clear">Wissen</string>
+    <string name="ends_at">Eindigt om %1$s</string>
+    <string name="ends_in">Eindigt over %1$s</string>
+    <string name="pick_end_date">Einddatum</string>
+    <string name="pick_end_time">Eindtijd</string>
+    <string name="error_past_time">Eindtijd moet in de toekomst liggen</string>
 
     <!-- Notification -->
     <string name="notification_channel_name">Actief parkeren</string>
@@ -43,9 +51,14 @@
     <string name="notification_title">Parkeren actief</string>
     <string name="notification_text">%1$s · sinds %2$s</string>
     <string name="notification_text_balance">%1$s · sinds %2$s · saldo %3$s</string>
+    <string name="notification_text_until">%1$s · sinds %2$s · tot %3$s</string>
+    <string name="notification_text_balance_until">%1$s · sinds %2$s · saldo %3$s · tot %4$s</string>
+    <string name="notification_parking_ended">Parkeren beëindigd</string>
+    <string name="notification_ended">Parkeren voor %1$s beëindigd</string>
     <string name="notification_starting">Parkeren starten…</string>
     <string name="notification_stopping">Parkeren stoppen…</string>
     <string name="notification_renew_failed">Verlengen mislukt, nieuwe poging volgt: %1$s</string>
     <string name="notification_stop_failed">Stoppen mislukt: %1$s</string>
+    <string name="notification_logged_out">Uitgelogd, log opnieuw in</string>
     <string name="notification_action_stop">Stop</string>
 </resources>

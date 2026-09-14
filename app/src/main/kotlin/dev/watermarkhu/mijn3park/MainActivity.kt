@@ -23,11 +23,20 @@ import com.google.android.material.color.MaterialColors
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.datepicker.CalendarConstraints
+import com.google.android.material.datepicker.DateValidatorPointForward
+import com.google.android.material.datepicker.MaterialDatePicker
+import com.google.android.material.timepicker.MaterialTimePicker
+import com.google.android.material.timepicker.TimeFormat
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -49,6 +58,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var defaultProductStar: MaterialButton
     private lateinit var statusCard: MaterialCardView
     private lateinit var statusIcon: ImageView
+    private lateinit var endTimeRow: View
+    private lateinit var endTimeLabel: TextView
+    private lateinit var endTimeClear: MaterialButton
+    private lateinit var endCountdown: TextView
+    private lateinit var plateChipsScroll: View
+
+    /** Planned end picked for the next start; 0 means open-ended. */
+    private var selectedEndAt: Long = 0L
+    private var countdownJob: Job? = null
 
     private var products: List<Product> = emptyList()
     private var serverMembers: List<Member> = emptyList()
@@ -62,6 +80,10 @@ class MainActivity : AppCompatActivity() {
     /** Permit products (fixed plate) have no balance, no start/stop. */
     private val isPermitProduct: Boolean
         get() = productDetails?.fixedPlate != null || currentProduct?.hasFixedPlate == true
+
+    private companion object {
+        const val KEY_SELECTED_END_AT = "selected_end_at"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,6 +107,19 @@ class MainActivity : AppCompatActivity() {
         balanceText = findViewById(R.id.balanceText)
         statusCard = findViewById(R.id.statusCard)
         statusIcon = findViewById(R.id.statusIcon)
+        endTimeRow = findViewById(R.id.endTimeRow)
+        endTimeLabel = findViewById(R.id.endTimeLabel)
+        endTimeClear = findViewById(R.id.endTimeClear)
+        endCountdown = findViewById(R.id.endCountdown)
+        plateChipsScroll = findViewById(R.id.plateChipsScroll)
+
+        selectedEndAt = savedInstanceState?.getLong(KEY_SELECTED_END_AT, 0L) ?: 0L
+
+        endTimeLabel.setOnClickListener { showEndDatePicker() }
+        endTimeClear.setOnClickListener {
+            selectedEndAt = 0L
+            renderState()
+        }
 
         defaultProductStar = findViewById(R.id.defaultProductStar)
 
@@ -137,8 +172,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        countdownJob?.cancel()
         ParkingService.onStateChanged = null
         super.onPause()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putLong(KEY_SELECTED_END_AT, selectedEndAt)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -162,10 +203,7 @@ class MainActivity : AppCompatActivity() {
             true
         }
         R.id.action_logout -> {
-            ParkingService.stop(this)
-            prefs.clearAll()
-            startActivity(Intent(this, LoginActivity::class.java))
-            finish()
+            performLogout()
             true
         }
         else -> super.onOptionsItemSelected(item)
@@ -200,10 +238,19 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        // Drop stale end times that passed while idle; never start in the past.
+        if (selectedEndAt > 0L && selectedEndAt <= System.currentTimeMillis()) {
+            selectedEndAt = 0L
+            renderState()
+            Toast.makeText(this, R.string.error_past_time, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val endAt = selectedEndAt
         prefs.rememberPlate(plate)
         renderPlateChips()
         setBusy(true)
-        ParkingService.start(this, plate)
+        ParkingService.start(this, plate, endAt)
     }
 
     // --- Data loading ---
@@ -233,6 +280,8 @@ class MainActivity : AppCompatActivity() {
                     selectProduct(products.first())
                 }
                 updateDefaultStar()
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }
@@ -310,6 +359,8 @@ class MainActivity : AppCompatActivity() {
                     ParkingService.stop(this@MainActivity)
                 }
                 renderState()
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }
@@ -319,6 +370,131 @@ class MainActivity : AppCompatActivity() {
     private suspend fun ensureLoggedIn() {
         if (api.email.isBlank()) {
             api.login(prefs.email, prefs.password)
+        }
+    }
+
+    /** Full wipe shared by manual logout and expired-session auto-logout. */
+    private fun performLogout() {
+        ParkingService.stop(this)
+        api.logout()
+        prefs.clearAll()
+        startActivity(Intent(this, LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
+        finish()
+    }
+
+    private var autoLoggedOut = false
+
+    /** Saved credentials were rejected: wipe everything, return to Login. */
+    private fun autoLogout() {
+        if (autoLoggedOut) return
+        autoLoggedOut = true
+        Toast.makeText(this, R.string.session_expired, Toast.LENGTH_LONG).show()
+        performLogout()
+    }
+
+    // --- Planned end time ---
+
+    private fun showEndDatePicker() {
+        val constraints = CalendarConstraints.Builder()
+            .setValidator(DateValidatorPointForward.now())
+            .build()
+        val picker = MaterialDatePicker.Builder.datePicker()
+            .setTitleText(R.string.pick_end_date)
+            .setCalendarConstraints(constraints)
+            .setSelection(
+                selectedEndAt.takeIf { it > 0L }
+                    ?: MaterialDatePicker.todayInUtcMilliseconds()
+            )
+            .build()
+        picker.addOnPositiveButtonClickListener { showEndTimePicker(it) }
+        picker.show(supportFragmentManager, "end_date")
+    }
+
+    private fun showEndTimePicker(dateUtcMillis: Long) {
+        val preset = if (selectedEndAt > 0L) {
+            Calendar.getInstance().apply { timeInMillis = selectedEndAt }
+        } else {
+            Calendar.getInstance()
+        }
+        val picker = MaterialTimePicker.Builder()
+            .setTitleText(R.string.pick_end_time)
+            .setHour(preset.get(Calendar.HOUR_OF_DAY))
+            .setMinute(preset.get(Calendar.MINUTE))
+            .setTimeFormat(
+                if (android.text.format.DateFormat.is24HourFormat(this)) TimeFormat.CLOCK_24H
+                else TimeFormat.CLOCK_12H
+            )
+            .build()
+        picker.addOnPositiveButtonClickListener {
+            // The date picker returns a UTC midnight; interpret its fields in
+            // the device zone so the day matches what was shown.
+            val zoneDay = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+                timeInMillis = dateUtcMillis
+            }
+            val picked = Calendar.getInstance().apply {
+                set(Calendar.YEAR, zoneDay.get(Calendar.YEAR))
+                set(Calendar.MONTH, zoneDay.get(Calendar.MONTH))
+                set(Calendar.DAY_OF_MONTH, zoneDay.get(Calendar.DAY_OF_MONTH))
+                set(Calendar.HOUR_OF_DAY, picker.hour)
+                set(Calendar.MINUTE, picker.minute)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            if (picked.timeInMillis <= System.currentTimeMillis()) {
+                Toast.makeText(this, R.string.error_past_time, Toast.LENGTH_LONG).show()
+                showEndTimePicker(dateUtcMillis)
+                return@addOnPositiveButtonClickListener
+            }
+            selectedEndAt = picked.timeInMillis
+            renderState()
+        }
+        picker.show(supportFragmentManager, "end_time")
+    }
+
+    /** "18:00" when the end is today, "EEE d MMM, HH:mm" otherwise. */
+    private fun formatEndShort(endAtMillis: Long): String {
+        val endDay = Calendar.getInstance().apply { timeInMillis = endAtMillis }
+        val today = Calendar.getInstance()
+        val sameDay = endDay.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+            endDay.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
+        val pattern = if (sameDay) "HH:mm" else "EEE d MMM, HH:mm"
+        return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(endAtMillis))
+    }
+
+    private fun formatRemaining(millis: Long): String {
+        val totalSeconds = millis / 1000L
+        val days = totalSeconds / 86_400L
+        val hours = (totalSeconds % 86_400L) / 3_600L
+        val minutes = (totalSeconds % 3_600L) / 60L
+        val seconds = totalSeconds % 60L
+        return when {
+            days > 0L -> "%dd %02d:%02d:%02d".format(Locale.ROOT, days, hours, minutes, seconds)
+            hours > 0L -> "%d:%02d:%02d".format(Locale.ROOT, hours, minutes, seconds)
+            else -> "%d:%02d".format(Locale.ROOT, minutes, seconds)
+        }
+    }
+
+    private fun updateCountdown() {
+        val endAt = prefs.activeEndAt
+        if (!prefs.isParking || endAt <= 0L) {
+            endCountdown.visibility = View.GONE
+            return
+        }
+        val remaining = (endAt - System.currentTimeMillis()).coerceAtLeast(0L)
+        endCountdown.text = getString(R.string.ends_in, formatRemaining(remaining))
+        endCountdown.visibility = View.VISIBLE
+    }
+
+    private fun startCountdownTicker() {
+        countdownJob?.cancel()
+        if (!prefs.isParking || prefs.activeEndAt <= 0L) return
+        countdownJob = lifecycleScope.launch {
+            while (isActive) {
+                delay(1_000L)
+                updateCountdown()
+            }
         }
     }
 
@@ -418,6 +594,8 @@ class MainActivity : AppCompatActivity() {
                     .setItems(labels) { _, which -> startTopup(options[which]) }
                     .setNegativeButton(R.string.cancel, null)
                     .show()
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }
@@ -435,6 +613,8 @@ class MainActivity : AppCompatActivity() {
                 val browserUrl = api.resolveTopupBrowserUrl(forward)
                 refreshOnResume = true
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }
@@ -493,6 +673,8 @@ class MainActivity : AppCompatActivity() {
                 prefs.savedPlates = prefs.savedPlates.filter { it != plate }
                 Toast.makeText(this@MainActivity, R.string.favorite_saved, Toast.LENGTH_SHORT).show()
                 refreshRemoteData()
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
                 refreshRemoteData()
@@ -507,6 +689,8 @@ class MainActivity : AppCompatActivity() {
                 api.removeFavorite(prefs.productId, member.plate, member.nickname)
                 Toast.makeText(this@MainActivity, R.string.favorite_deleted, Toast.LENGTH_SHORT).show()
                 refreshRemoteData()
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }
@@ -538,6 +722,25 @@ class MainActivity : AppCompatActivity() {
         // is somehow running, so it can still be stopped).
         toggleButton.visibility = if (isPermitProduct && !parking) View.GONE else View.VISIBLE
 
+        // Plate chips only make sense before starting: hide them while parking.
+        plateChipsScroll.visibility = if (parking) View.GONE else View.VISIBLE
+
+        // Planned end time: selector while idle (permits excluded, there is
+        // nothing to end), live countdown while parking. The idle pick is
+        // consumed once parking starts; the service owns prefs.activeEndAt.
+        if (parking) selectedEndAt = 0L
+        endTimeRow.visibility = if (!parking && !isPermitProduct) View.VISIBLE else View.GONE
+        if (!parking) {
+            endTimeLabel.text = if (selectedEndAt > 0L) {
+                getString(R.string.ends_at, formatEndShort(selectedEndAt))
+            } else {
+                getString(R.string.set_end_time)
+            }
+            endTimeClear.visibility = if (selectedEndAt > 0L) View.VISIBLE else View.GONE
+        }
+        updateCountdown()
+        startCountdownTicker()
+
         // MD3 tonal states: primary container while parking or while the
         // permit's fixed plate is covered, neutral otherwise.
         val highlighted = parking || productDetails?.fixedPlateActive == true
@@ -558,6 +761,7 @@ class MainActivity : AppCompatActivity() {
             if (highlighted) cardFg
             else MaterialColors.getColor(balanceText, com.google.android.material.R.attr.colorOnSurfaceVariant)
         )
+        endCountdown.setTextColor(balanceText.currentTextColor)
 
         // Stop is a destructive action: switch the button to error tones.
         toggleButton.backgroundTintList = ColorStateList.valueOf(
