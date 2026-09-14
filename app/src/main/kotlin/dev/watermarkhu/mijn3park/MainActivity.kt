@@ -2,8 +2,11 @@ package dev.watermarkhu.mijn3park
 
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -36,6 +39,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var productDropdown: MaterialAutoCompleteTextView
     private lateinit var plateInput: MaterialAutoCompleteTextView
     private lateinit var plateChips: ChipGroup
+    /** Plate chips paired with the plate they insert, for highlighting. */
+    private val plateChipViews = mutableListOf<Pair<Chip, String>>()
     private lateinit var statusText: TextView
     private lateinit var toggleButton: MaterialButton
     private lateinit var progress: LinearProgressIndicator
