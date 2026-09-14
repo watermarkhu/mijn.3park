@@ -331,7 +331,9 @@ class MainActivity : AppCompatActivity() {
         productDetails?.fixedPlate?.let { fixed ->
             val chip = Chip(this).apply {
                 text = getString(R.string.fixed_plate_chip, fixed)
-                isCheckable = true
+                isCheckable = false
+                isClickable = true
+                isFocusable = true
                 setOnClickListener { plateInput.setText(fixed, false) }
             }
             plateChips.addView(chip)
@@ -343,7 +345,9 @@ class MainActivity : AppCompatActivity() {
         serverMembers.filter { it.plate != fixedPlate }.forEach { member ->
             val chip = Chip(this).apply {
                 text = member.nickname?.let { "$it · ${member.plate}" } ?: member.plate
-                isCheckable = true
+                isCheckable = false
+                isClickable = true
+                isFocusable = true
                 setOnClickListener { plateInput.setText(member.plate, false) }
                 setOnLongClickListener {
                     showFavoriteDialog(member)
@@ -357,7 +361,9 @@ class MainActivity : AppCompatActivity() {
         prefs.savedPlates.filter { it !in serverPlates }.forEach { plate ->
             val chip = Chip(this).apply {
                 text = plate
-                isCheckable = true
+                isCheckable = false
+                isClickable = true
+                isFocusable = true
                 isCloseIconVisible = true
                 setOnClickListener { plateInput.setText(plate, false) }
                 setOnCloseIconClickListener {
@@ -377,6 +383,9 @@ class MainActivity : AppCompatActivity() {
         plateChips.addView(
             Chip(this).apply {
                 text = getString(R.string.add)
+                isCheckable = false
+                isClickable = true
+                isFocusable = true
                 setChipIconResource(R.drawable.ic_add)
                 isChipIconVisible = true
                 chipIconTint = ColorStateList.valueOf(
