@@ -36,6 +36,7 @@
     <string name="topup_title">Saldo opwaarderen</string>
     <string name="topup_none">Geen opwaardeeropties beschikbaar voor dit product</string>
     <string name="menu_logout">Uitloggen</string>
+    <string name="session_expired">Sessie verlopen, je bent uitgelogd</string>
 
     <!-- Notification -->
     <string name="notification_channel_name">Actief parkeren</string>
@@ -47,5 +48,6 @@
     <string name="notification_stopping">Parkeren stoppen…</string>
     <string name="notification_renew_failed">Verlengen mislukt, nieuwe poging volgt: %1$s</string>
     <string name="notification_stop_failed">Stoppen mislukt: %1$s</string>
+    <string name="notification_logged_out">Uitgelogd, log opnieuw in</string>
     <string name="notification_action_stop">Stop</string>
 </resources>

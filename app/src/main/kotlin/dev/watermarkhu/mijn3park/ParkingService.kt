@@ -133,6 +133,8 @@ class ParkingService : Service() {
                 notify(activeNotification())
                 scheduleMidnightRenewal()
                 onStateChanged?.invoke()
+            } catch (e: AuthFailedException) {
+                handleAuthFailure()
             } catch (e: Exception) {
                 lastError = e.message ?: e.toString()
                 prefs.clearActiveParking()
@@ -161,6 +163,8 @@ class ParkingService : Service() {
                 notify(activeNotification())
                 scheduleMidnightRenewal()
                 onStateChanged?.invoke()
+            } catch (e: AuthFailedException) {
+                handleAuthFailure()
             } catch (e: Exception) {
                 lastError = e.message ?: e.toString()
                 notify(
@@ -185,6 +189,8 @@ class ParkingService : Service() {
                     withContext(Dispatchers.IO) { api.stop(prefs.productId, plate) }
                 }
                 lastError = null
+            } catch (e: AuthFailedException) {
+                handleAuthFailure()
             } catch (e: Exception) {
                 lastError = e.message ?: e.toString()
             } finally {
@@ -200,6 +206,21 @@ class ParkingService : Service() {
         if (api.email.isBlank()) {
             api.login(prefs.email, prefs.password)
         }
+    }
+
+    /**
+     * Saved credentials were rejected: full wipe (same scope as manual
+     * logout), cancel any renewal alarm, and leave a notification behind
+     * instead of retrying with dead credentials.
+     */
+    private fun handleAuthFailure() {
+        currentJob?.cancel()
+        prefs.clearAll()
+        api.logout()
+        cancelAlarm()
+        notify(buildNotification(getString(R.string.notification_logged_out), ""))
+        onStateChanged?.invoke()
+        stopSelfCompletely()
     }
 
     /** Best-effort balance refresh for display purposes; never fails the caller. */

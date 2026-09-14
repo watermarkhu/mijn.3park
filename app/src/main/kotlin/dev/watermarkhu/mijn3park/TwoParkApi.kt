@@ -21,6 +21,15 @@ import java.util.concurrent.TimeUnit
 
 class TwoParkException(message: String) : Exception(message)
 
+/**
+ * The saved credentials were rejected by the server (or none are stored).
+ * Re-login with the same credentials is pointless: callers must log out.
+ */
+class AuthFailedException(message: String) : TwoParkException(message)
+
+/** The session cookie expired or was lost: a fresh login may recover. */
+class SessionExpiredException(message: String) : TwoParkException(message)
+
 fun normalizePlate(plate: String): String =
     plate.trim().uppercase(Locale.ROOT).replace("-", "").replace(" ", "")
 
@@ -79,8 +88,10 @@ data class Balance(
  * Async client for the undocumented mijn.2park.nl web endpoints.
  *
  * Session state is cookie based; the in-memory cookie jar lives as long as the
- * process, and every call transparently re-authenticates when the session has
- * expired.
+ * process. Credentials stay in encrypted prefs; every call transparently
+ * re-authenticates when the session has expired, and failures caused by
+ * rejected credentials surface as [AuthFailedException] so callers can log
+ * the user out instead of retrying.
  */
 class TwoParkApi {
 
@@ -151,6 +162,9 @@ class TwoParkApi {
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
+                    if (response.code == 401 || response.code == 403) {
+                        throw SessionExpiredException("HTTP ${response.code} for $endpoint")
+                    }
                     throw TwoParkException("HTTP ${response.code} for $endpoint")
                 }
                 val text = response.body?.string()
@@ -186,13 +200,19 @@ class TwoParkApi {
 
     private suspend fun doLogin() {
         if (email.isBlank() || password.isBlank()) {
-            throw TwoParkException("No credentials configured")
+            throw AuthFailedException("No credentials configured")
         }
         val payload = postForm(
             "check_credentials.json",
             mapOf("email" to email, "password" to password, "locale" to LOCALE),
         )
-        assertOk(payload, expectedMinor = "AUTHENTICATED")
+        try {
+            assertOk(payload, expectedMinor = "AUTHENTICATED")
+        } catch (e: TwoParkException) {
+            // Rejected by the server (wrong/changed password, revoked account):
+            // retrying with the same credentials cannot succeed.
+            throw AuthFailedException(e.message ?: "Login rejected")
+        }
         loggedIn = true
     }
 
@@ -203,16 +223,30 @@ class TwoParkApi {
         }
     }
 
-    /** Run [block]; on failure assume the session expired, re-login and retry once. */
+    /**
+     * Run [block]; when the failure looks like an expired session, log in
+     * once with the saved credentials and retry. Auth failures are never
+     * retried: they propagate as [AuthFailedException] so the caller logs out.
+     */
     private suspend fun <T> withAuthRetry(block: suspend () -> T): T {
         ensureLoggedIn()
         return try {
             block()
+        } catch (e: AuthFailedException) {
+            throw e
         } catch (e: TwoParkException) {
             loggedIn = false
             ensureLoggedIn()
             block()
         }
+    }
+
+    /** Drop the session: cookies, login flag and in-memory credentials. */
+    fun logout() {
+        synchronized(cookieStore) { cookieStore.clear() }
+        loggedIn = false
+        email = ""
+        password = ""
     }
 
     private fun findDefaultLocation(product: JSONObject): String? {

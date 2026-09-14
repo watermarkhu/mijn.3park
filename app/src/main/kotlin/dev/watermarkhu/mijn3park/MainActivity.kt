@@ -162,10 +162,7 @@ class MainActivity : AppCompatActivity() {
             true
         }
         R.id.action_logout -> {
-            ParkingService.stop(this)
-            prefs.clearAll()
-            startActivity(Intent(this, LoginActivity::class.java))
-            finish()
+            performLogout()
             true
         }
         else -> super.onOptionsItemSelected(item)
@@ -233,6 +230,8 @@ class MainActivity : AppCompatActivity() {
                     selectProduct(products.first())
                 }
                 updateDefaultStar()
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }
@@ -310,6 +309,8 @@ class MainActivity : AppCompatActivity() {
                     ParkingService.stop(this@MainActivity)
                 }
                 renderState()
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }
@@ -320,6 +321,27 @@ class MainActivity : AppCompatActivity() {
         if (api.email.isBlank()) {
             api.login(prefs.email, prefs.password)
         }
+    }
+
+    /** Full wipe shared by manual logout and expired-session auto-logout. */
+    private fun performLogout() {
+        ParkingService.stop(this)
+        api.logout()
+        prefs.clearAll()
+        startActivity(Intent(this, LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
+        finish()
+    }
+
+    private var autoLoggedOut = false
+
+    /** Saved credentials were rejected: wipe everything, return to Login. */
+    private fun autoLogout() {
+        if (autoLoggedOut) return
+        autoLoggedOut = true
+        Toast.makeText(this, R.string.session_expired, Toast.LENGTH_LONG).show()
+        performLogout()
     }
 
     // --- Rendering ---
@@ -418,6 +440,8 @@ class MainActivity : AppCompatActivity() {
                     .setItems(labels) { _, which -> startTopup(options[which]) }
                     .setNegativeButton(R.string.cancel, null)
                     .show()
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }
@@ -435,6 +459,8 @@ class MainActivity : AppCompatActivity() {
                 val browserUrl = api.resolveTopupBrowserUrl(forward)
                 refreshOnResume = true
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }
@@ -493,6 +519,8 @@ class MainActivity : AppCompatActivity() {
                 prefs.savedPlates = prefs.savedPlates.filter { it != plate }
                 Toast.makeText(this@MainActivity, R.string.favorite_saved, Toast.LENGTH_SHORT).show()
                 refreshRemoteData()
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
                 refreshRemoteData()
@@ -507,6 +535,8 @@ class MainActivity : AppCompatActivity() {
                 api.removeFavorite(prefs.productId, member.plate, member.nickname)
                 Toast.makeText(this@MainActivity, R.string.favorite_deleted, Toast.LENGTH_SHORT).show()
                 refreshRemoteData()
+            } catch (e: AuthFailedException) {
+                autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
             }
