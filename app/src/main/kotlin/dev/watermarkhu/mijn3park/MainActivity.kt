@@ -62,6 +62,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var endTimeLabel: TextView
     private lateinit var endTimeClear: MaterialButton
     private lateinit var endCountdown: TextView
+    private lateinit var plateChipsScroll: View
 
     /** Planned end picked for the next start; 0 means open-ended. */
     private var selectedEndAt: Long = 0L
@@ -110,6 +111,7 @@ class MainActivity : AppCompatActivity() {
         endTimeLabel = findViewById(R.id.endTimeLabel)
         endTimeClear = findViewById(R.id.endTimeClear)
         endCountdown = findViewById(R.id.endCountdown)
+        plateChipsScroll = findViewById(R.id.plateChipsScroll)
 
         selectedEndAt = savedInstanceState?.getLong(KEY_SELECTED_END_AT, 0L) ?: 0L
 
@@ -490,8 +492,7 @@ class MainActivity : AppCompatActivity() {
         if (!prefs.isParking || prefs.activeEndAt <= 0L) return
         countdownJob = lifecycleScope.launch {
             while (isActive) {
-                val remaining = prefs.activeEndAt - System.currentTimeMillis()
-                delay(if (remaining < 3_600_000L) 1_000L else 30_000L)
+                delay(1_000L)
                 updateCountdown()
             }
         }
@@ -720,6 +721,9 @@ class MainActivity : AppCompatActivity() {
         // Permits are always-on: hide start/stop entirely (unless a session
         // is somehow running, so it can still be stopped).
         toggleButton.visibility = if (isPermitProduct && !parking) View.GONE else View.VISIBLE
+
+        // Plate chips only make sense before starting: hide them while parking.
+        plateChipsScroll.visibility = if (parking) View.GONE else View.VISIBLE
 
         // Planned end time: selector while idle (permits excluded, there is
         // nothing to end), live countdown while parking. The idle pick is
