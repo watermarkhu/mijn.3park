@@ -84,8 +84,8 @@ def main() -> int:
     if module.get("module", {}).get("languageLevel") == "JAVA_8":
         if "JavaVersion.VERSION_1_8" not in gradle:
             errors.append('languageLevel JAVA_8 requires JavaVersion.VERSION_1_8 in compileOptions')
-        if not re.search(r'jvmTarget\s*=\s*"1\.8"', gradle):
-            errors.append('languageLevel JAVA_8 requires kotlinOptions jvmTarget = "1.8"')
+        if not re.search(r'jvmTarget\s*(=\s*"1\.8"|\.set\([^)]*JVM_1_8)', gradle):
+            errors.append('languageLevel JAVA_8 requires jvmTarget 1.8 (kotlinOptions or compilerOptions)')
 
     # --- dependencies ---
     gradle_deps = set(re.findall(r'implementation\("([^"]+)"\)', gradle))
