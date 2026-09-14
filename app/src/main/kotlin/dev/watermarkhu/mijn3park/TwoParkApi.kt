@@ -19,7 +19,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-class TwoParkException(message: String) : Exception(message)
+open class TwoParkException(message: String) : Exception(message)
 
 /**
  * The saved credentials were rejected by the server (or none are stored).
