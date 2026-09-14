@@ -42,6 +42,13 @@
     <string name="topup_none">No top-up options available for this product</string>
     <string name="menu_logout">Log out</string>
     <string name="session_expired">Session expired, you have been logged out</string>
+    <string name="set_end_time">Set end time (optional)</string>
+    <string name="clear">Clear</string>
+    <string name="ends_at">Ends at %1$s</string>
+    <string name="ends_in">Ends in %1$s</string>
+    <string name="pick_end_date">End date</string>
+    <string name="pick_end_time">End time</string>
+    <string name="error_past_time">End time must be in the future</string>
 
     <!-- Notification -->
     <string name="notification_channel_name">Active parking</string>
@@ -49,6 +56,10 @@
     <string name="notification_title">Parking active</string>
     <string name="notification_text">%1$s · since %2$s</string>
     <string name="notification_text_balance">%1$s · since %2$s · balance %3$s</string>
+    <string name="notification_text_until">%1$s · since %2$s · until %3$s</string>
+    <string name="notification_text_balance_until">%1$s · since %2$s · balance %3$s · until %4$s</string>
+    <string name="notification_parking_ended">Parking ended</string>
+    <string name="notification_ended">Parking for %1$s ended</string>
     <string name="notification_starting">Starting parking…</string>
     <string name="notification_stopping">Stopping parking…</string>
     <string name="notification_renew_failed">Renewal failed, will retry: %1$s</string>

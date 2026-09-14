@@ -122,11 +122,19 @@ class Prefs(context: Context) {
         get() = prefs.getLong("active_since", 0L)
         set(value) = prefs.edit().putLong("active_since", value).apply()
 
+    /**
+     * Planned parking end, epoch millis. 0 means none: parking runs
+     * open-ended (with the usual midnight renewals) until stopped manually.
+     */
+    var activeEndAt: Long
+        get() = prefs.getLong("active_end_at", 0L)
+        set(value) = prefs.edit().putLong("active_end_at", value).apply()
+
     val isParking: Boolean
         get() = activePlate.isNotBlank()
 
     fun clearActiveParking() {
-        prefs.edit().remove("active_plate").remove("active_since").apply()
+        prefs.edit().remove("active_plate").remove("active_since").remove("active_end_at").apply()
     }
 
     fun clearAll() {
