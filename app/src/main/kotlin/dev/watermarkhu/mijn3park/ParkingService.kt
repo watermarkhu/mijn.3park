@@ -36,10 +36,13 @@ class ParkingService : Service() {
         const val ACTION_START = "dev.watermarkhu.mijn3park.action.START"
         const val ACTION_STOP = "dev.watermarkhu.mijn3park.action.STOP"
         const val ACTION_RENEW = "dev.watermarkhu.mijn3park.action.RENEW"
+        const val ACTION_AUTO_STOP = "dev.watermarkhu.mijn3park.action.AUTO_STOP"
         const val EXTRA_PLATE = "plate"
+        const val EXTRA_END_AT = "end_at"
 
         const val CHANNEL_ID = "parking_active"
         const val NOTIFICATION_ID = 1
+        const val NOTIFICATION_ENDED_ID = 2
 
         /** Invoked on the main thread whenever parking state changes. */
         @Volatile
@@ -48,10 +51,11 @@ class ParkingService : Service() {
         @Volatile
         var lastError: String? = null
 
-        fun start(context: Context, plate: String) {
+        fun start(context: Context, plate: String, endAt: Long = 0L) {
             val intent = Intent(context, ParkingService::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_PLATE, normalizePlate(plate))
+                .putExtra(EXTRA_END_AT, endAt)
             if (Build.VERSION.SDK_INT >= 26) {
                 context.startForegroundService(intent)
             } else {
@@ -86,8 +90,17 @@ class ParkingService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 val plate = intent.getStringExtra(EXTRA_PLATE).orEmpty()
+                val endAt = intent.getLongExtra(EXTRA_END_AT, 0L)
                 startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.notification_starting), plate))
-                startParking(plate)
+                startParking(plate, endAt)
+            }
+            ACTION_AUTO_STOP -> {
+                if (prefs.isParking && prefs.activeEndAt > 0L) {
+                    startForeground(NOTIFICATION_ID, activeNotification())
+                    autoStopParking()
+                } else {
+                    stopSelfCompletely()
+                }
             }
             ACTION_RENEW -> {
                 if (prefs.isParking) {
@@ -106,6 +119,7 @@ class ParkingService : Service() {
                 if (prefs.isParking) {
                     startForeground(NOTIFICATION_ID, activeNotification())
                     scheduleMidnightRenewal()
+                    scheduleEndAlarm(prefs.activeEndAt)
                 } else {
                     stopSelfCompletely()
                 }
@@ -114,7 +128,7 @@ class ParkingService : Service() {
         return START_STICKY
     }
 
-    private fun startParking(plate: String) {
+    private fun startParking(plate: String, endAt: Long) {
         if (plate.isBlank()) {
             stopSelfCompletely()
             return
@@ -128,11 +142,16 @@ class ParkingService : Service() {
                 }
                 prefs.activePlate = plate
                 prefs.activeSince = System.currentTimeMillis()
+                // Ignore stale end times that passed while starting.
+                prefs.activeEndAt = endAt.takeIf { it > System.currentTimeMillis() } ?: 0L
                 lastError = null
                 refreshBalance()
                 notify(activeNotification())
                 scheduleMidnightRenewal()
+                scheduleEndAlarm(prefs.activeEndAt)
                 onStateChanged?.invoke()
+            } catch (e: AuthFailedException) {
+                handleAuthFailure()
             } catch (e: Exception) {
                 lastError = e.message ?: e.toString()
                 prefs.clearActiveParking()
@@ -161,6 +180,8 @@ class ParkingService : Service() {
                 notify(activeNotification())
                 scheduleMidnightRenewal()
                 onStateChanged?.invoke()
+            } catch (e: AuthFailedException) {
+                handleAuthFailure()
             } catch (e: Exception) {
                 lastError = e.message ?: e.toString()
                 notify(
@@ -185,14 +206,47 @@ class ParkingService : Service() {
                     withContext(Dispatchers.IO) { api.stop(prefs.productId, plate) }
                 }
                 lastError = null
+            } catch (e: AuthFailedException) {
+                handleAuthFailure()
             } catch (e: Exception) {
                 lastError = e.message ?: e.toString()
             } finally {
                 prefs.clearActiveParking()
                 cancelAlarm()
+                cancelEndAlarm()
                 onStateChanged?.invoke()
                 stopSelfCompletely()
             }
+        }
+    }
+
+    /**
+     * Planned end time reached: stop server-side and report. Unlike a manual
+     * stop this leaves a "parking ended" notification behind. Failures still
+     * end the local state: the planned time has passed either way.
+     */
+    private fun autoStopParking() {
+        val plate = prefs.activePlate
+        currentJob?.cancel()
+        currentJob = scope.launch {
+            try {
+                if (plate.isNotBlank()) {
+                    ensureCredentials()
+                    withContext(Dispatchers.IO) { api.stop(prefs.productId, plate) }
+                }
+                lastError = null
+            } catch (e: AuthFailedException) {
+                handleAuthFailure()
+                return@launch
+            } catch (e: Exception) {
+                lastError = e.message ?: e.toString()
+            }
+            prefs.clearActiveParking()
+            cancelAlarm()
+            cancelEndAlarm()
+            notifyEnded(endedNotification(plate))
+            onStateChanged?.invoke()
+            stopSelfCompletely()
         }
     }
 
@@ -200,6 +254,22 @@ class ParkingService : Service() {
         if (api.email.isBlank()) {
             api.login(prefs.email, prefs.password)
         }
+    }
+
+    /**
+     * Saved credentials were rejected: full wipe (same scope as manual
+     * logout), cancel any renewal alarm, and leave a notification behind
+     * instead of retrying with dead credentials.
+     */
+    private fun handleAuthFailure() {
+        currentJob?.cancel()
+        prefs.clearAll()
+        api.logout()
+        cancelAlarm()
+        cancelEndAlarm()
+        notify(buildNotification(getString(R.string.notification_logged_out), ""))
+        onStateChanged?.invoke()
+        stopSelfCompletely()
     }
 
     /** Best-effort balance refresh for display purposes; never fails the caller. */
@@ -247,19 +317,57 @@ class ParkingService : Service() {
     }
 
     private fun scheduleAlarm(triggerAtMillis: Long) {
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        if (Build.VERSION.SDK_INT >= 23) {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP, triggerAtMillis, renewPendingIntent()
-            )
-        } else {
-            alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, renewPendingIntent())
-        }
+        scheduleExactOrFallback(triggerAtMillis, renewPendingIntent())
     }
 
     private fun cancelAlarm() {
         val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
         alarmManager.cancel(renewPendingIntent())
+    }
+
+    // --- Planned end-time alarm ---
+
+    private fun endPendingIntent(): PendingIntent {
+        val intent = Intent(this, ParkingService::class.java).setAction(ACTION_AUTO_STOP)
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+            (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0)
+        return if (Build.VERSION.SDK_INT >= 26) {
+            PendingIntent.getForegroundService(this, 3, intent, flags)
+        } else {
+            PendingIntent.getService(this, 3, intent, flags)
+        }
+    }
+
+    /** No-op when [endAtMillis] is not a future planned end. */
+    private fun scheduleEndAlarm(endAtMillis: Long) {
+        if (endAtMillis <= System.currentTimeMillis()) return
+        scheduleExactOrFallback(endAtMillis, endPendingIntent())
+    }
+
+    private fun cancelEndAlarm() {
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.cancel(endPendingIntent())
+    }
+
+    /**
+     * Exact alarms need SCHEDULE_EXACT_ALARM on API 31+; fall back to an
+     * inexact alarm when the user did not grant it instead of crashing.
+     */
+    private fun scheduleExactOrFallback(triggerAtMillis: Long, intent: PendingIntent) {
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val exact =
+            Build.VERSION.SDK_INT < 31 || alarmManager.canScheduleExactAlarms()
+        if (exact && Build.VERSION.SDK_INT >= 23) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP, triggerAtMillis, intent
+            )
+        } else if (exact) {
+            alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, intent)
+        } else if (Build.VERSION.SDK_INT >= 23) {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, intent)
+        } else {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, intent)
+        }
     }
 
     // --- Notifications ---
@@ -281,12 +389,56 @@ class ParkingService : Service() {
     private fun activeNotification(): Notification {
         val since = SimpleDateFormat("HH:mm", Locale.ROOT).format(Date(prefs.activeSince))
         val balance = prefs.lastBalance
+        val endAt = prefs.activeEndAt
         val text = if (balance.isNotBlank()) {
-            getString(R.string.notification_text_balance, prefs.activePlate, since, balance)
+            if (endAt > 0L) {
+                getString(
+                    R.string.notification_text_balance_until,
+                    prefs.activePlate, since, balance, formatNotifEnd(endAt),
+                )
+            } else {
+                getString(R.string.notification_text_balance, prefs.activePlate, since, balance)
+            }
         } else {
-            getString(R.string.notification_text, prefs.activePlate, since)
+            if (endAt > 0L) {
+                getString(
+                    R.string.notification_text_until,
+                    prefs.activePlate, since, formatNotifEnd(endAt),
+                )
+            } else {
+                getString(R.string.notification_text, prefs.activePlate, since)
+            }
         }
         return buildNotification(text, prefs.activePlate, showStop = true)
+    }
+
+    /** Short end-time form: "18:00" today, "5 Mar 10:00" on another day. */
+    private fun formatNotifEnd(endAtMillis: Long): String {
+        val endDay = Calendar.getInstance().apply { timeInMillis = endAtMillis }
+        val today = Calendar.getInstance()
+        val sameDay = endDay.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+            endDay.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
+        val pattern = if (sameDay) "HH:mm" else "d MMM HH:mm"
+        return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(endAtMillis))
+    }
+
+    /** Final, non-ongoing notification after the planned end time is reached. */
+    private fun endedNotification(plate: String): Notification {
+        val contentFlags = PendingIntent.FLAG_UPDATE_CURRENT or
+            (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0)
+        val contentIntent = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java), contentFlags
+        )
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_car)
+            .setContentTitle(getString(R.string.notification_parking_ended))
+            .setContentText(getString(R.string.notification_ended, plate))
+            .setContentIntent(contentIntent)
+            .setOngoing(false)
+            .setAutoCancel(true)
+            .setShowWhen(true)
+            .setWhen(System.currentTimeMillis())
+            .build()
     }
 
     private fun buildNotification(text: String, plate: String, showStop: Boolean = false): Notification {
@@ -325,6 +477,11 @@ class ParkingService : Service() {
     private fun notify(notification: Notification) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(NOTIFICATION_ID, notification)
+    }
+
+    private fun notifyEnded(notification: Notification) {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(NOTIFICATION_ENDED_ID, notification)
     }
 
     override fun onDestroy() {
