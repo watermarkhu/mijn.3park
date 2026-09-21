@@ -3,12 +3,12 @@ plugins {
 }
 
 android {
-    namespace = "dev.watermarkhu.mijn3park"
+    namespace = "com.watermarkhu.mijn3park"
     compileSdk = 37
     buildToolsVersion = "35.0.0"
 
     defaultConfig {
-        applicationId = "dev.watermarkhu.mijn3park"
+        applicationId = "com.watermarkhu.mijn3park"
         minSdk = 23
         // Mirrors app/module.toml (targetSdk = 35).
         targetSdk = 35

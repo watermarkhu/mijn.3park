@@ -156,7 +156,7 @@ Date/time format is `dd-MM-yyyy HH:mm:ss` (Dutch day-first), **not** ISO.
 
 ## App architecture
 
-Package: `dev.watermarkhu.mijn3park` (not `com.example.*`). Kotlin, coroutines,
+Package: `com.watermarkhu.mijn3park` (not `com.example.*`). Kotlin, coroutines,
 OkHttp, Material 3. Build config in `app/module.toml` (this project uses a
 `module.toml` scaffold, **not** a standard Gradle `build.gradle`).
 

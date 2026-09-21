@@ -37,7 +37,7 @@ resources = ["src/release/resources"]
 implementation = ["kotlin-stdlib", "com.google.android.material:material:1.14.0", "androidx.appcompat:appcompat:1.8.0", "androidx.lifecycle:lifecycle-runtime-ktx:2.11.0", "androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0", "androidx.fragment:fragment-ktx:1.8.9", "androidx.recyclerview:recyclerview:1.4.0", "androidx.swiperefreshlayout:swiperefreshlayout:1.2.0", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0", "com.squareup.okhttp3:okhttp:5.5.0", "androidx.security:security-crypto:1.1.0"]
 
 [android]
-namespace = "dev.watermarkhu.mijn3park"
+namespace = "com.watermarkhu.mijn3park"
 compileSdk = 37
 minSdk = 23
 targetSdk = 35

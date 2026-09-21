@@ -1,4 +1,4 @@
-package dev.watermarkhu.mijn3park
+package com.watermarkhu.mijn3park
 
 import android.app.AlarmManager
 import android.app.Notification
@@ -33,10 +33,10 @@ import java.util.Locale
 class ParkingService : Service() {
 
     companion object {
-        const val ACTION_START = "dev.watermarkhu.mijn3park.action.START"
-        const val ACTION_STOP = "dev.watermarkhu.mijn3park.action.STOP"
-        const val ACTION_RENEW = "dev.watermarkhu.mijn3park.action.RENEW"
-        const val ACTION_AUTO_STOP = "dev.watermarkhu.mijn3park.action.AUTO_STOP"
+        const val ACTION_START = "com.watermarkhu.mijn3park.action.START"
+        const val ACTION_STOP = "com.watermarkhu.mijn3park.action.STOP"
+        const val ACTION_RENEW = "com.watermarkhu.mijn3park.action.RENEW"
+        const val ACTION_AUTO_STOP = "com.watermarkhu.mijn3park.action.AUTO_STOP"
         const val EXTRA_PLATE = "plate"
         const val EXTRA_END_AT = "end_at"
 

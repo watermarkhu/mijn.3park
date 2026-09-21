@@ -1,4 +1,4 @@
-package dev.watermarkhu.mijn3park
+package com.watermarkhu.mijn3park
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
