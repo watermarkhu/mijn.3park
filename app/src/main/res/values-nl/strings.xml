@@ -43,6 +43,14 @@
     <string name="topup_none">Geen opwaardeeropties beschikbaar voor dit product</string>
     <string name="menu_logout">Uitloggen</string>
     <string name="session_expired">Sessie verlopen, je bent uitgelogd</string>
+
+    <!-- Health / failure screens -->
+    <string name="retry">Opnieuw</string>
+    <string name="health_checking_title">2Park controleren…</string>
+    <string name="health_unavailable_title">2Park is niet beschikbaar</string>
+    <string name="health_unavailable_message">Kan 2Park momenteel niet bereiken. Probeer het later opnieuw.</string>
+    <string name="health_unreliable_title">Geen betrouwbare verbinding met 2Park</string>
+    <string name="health_unreliable_message">2Park gaf onverwachte gegevens terug. Parkeren is uitgeschakeld om fouten te voorkomen.</string>
     <string name="set_end_time">Eindtijd instellen (optioneel)</string>
     <string name="clear">Wissen</string>
     <string name="ends_at">Eindigt om %1$s</string>

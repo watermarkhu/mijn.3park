@@ -2,15 +2,20 @@ package dev.watermarkhu.mijn3park
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.progressindicator.CircularProgressIndicator
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -18,6 +23,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: Prefs
     private lateinit var toolbar: MaterialToolbar
     private lateinit var bottomNav: BottomNavigationView
+    private lateinit var navHost: View
+
+    private lateinit var statusContainer: View
+    private lateinit var statusIcon: View
+    private lateinit var statusProgress: CircularProgressIndicator
+    private lateinit var statusTitle: TextView
+    private lateinit var statusMessage: TextView
+    private lateinit var statusRetry: MaterialButton
 
     private val vm: AppViewModel by viewModels()
 
@@ -35,11 +48,26 @@ class MainActivity : AppCompatActivity() {
         toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
         bottomNav = findViewById(R.id.bottomNav)
+        navHost = findViewById(R.id.navHost)
+
+        statusContainer = findViewById(R.id.statusContainer)
+        statusIcon = findViewById(R.id.statusIcon)
+        statusProgress = findViewById(R.id.statusProgress)
+        statusTitle = findViewById(R.id.statusTitle)
+        statusMessage = findViewById(R.id.statusMessage)
+        statusRetry = findViewById(R.id.statusRetry)
+        statusRetry.setOnClickListener { vm.retry() }
+
         bottomNav.setOnItemSelectedListener { item ->
             switchTo(item.itemId)
             true
         }
 
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                vm.health.collect { applyHealth(it) }
+            }
+        }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 vm.sessionExpired.collect {
@@ -60,9 +88,10 @@ class MainActivity : AppCompatActivity() {
             bottomNav.selectedItemId = R.id.nav_park
         } else {
             toolbar.setTitle(titleFor(bottomNav.selectedItemId))
+            applyHealth(vm.health.value)
         }
 
-        vm.loadProducts()
+        vm.start()
     }
 
     private fun titleFor(itemId: Int): Int = when (itemId) {
@@ -89,6 +118,7 @@ class MainActivity : AppCompatActivity() {
         }
         tx.commit()
         toolbar.setTitle(titleFor(itemId))
+        applyHealth(vm.health.value)
     }
 
     private fun createFragment(itemId: Int): Fragment = when (itemId) {
@@ -96,6 +126,45 @@ class MainActivity : AppCompatActivity() {
         R.id.nav_transactions -> TransactionsFragment()
         R.id.nav_settings -> SettingsFragment()
         else -> ParkFragment()
+    }
+
+    /**
+     * When 2Park is unusable, Park/History/Transactions are replaced by a
+     * failure screen. Settings stays reachable (logout, theme, product).
+     */
+    private fun applyHealth(health: HealthState) {
+        val onSettings = bottomNav.selectedItemId == R.id.nav_settings
+        val showStatus = health != HealthState.OK && !onSettings
+        statusContainer.isVisible = showStatus
+        navHost.isVisible = !showStatus
+        if (!showStatus) return
+
+        when (health) {
+            HealthState.CHECKING -> {
+                statusIcon.isVisible = false
+                statusProgress.isVisible = true
+                statusTitle.setText(R.string.health_checking_title)
+                statusMessage.isVisible = false
+                statusRetry.isVisible = false
+            }
+            HealthState.UNAVAILABLE -> {
+                statusIcon.isVisible = true
+                statusProgress.isVisible = false
+                statusTitle.setText(R.string.health_unavailable_title)
+                statusMessage.setText(R.string.health_unavailable_message)
+                statusMessage.isVisible = true
+                statusRetry.isVisible = true
+            }
+            HealthState.UNRELIABLE -> {
+                statusIcon.isVisible = true
+                statusProgress.isVisible = false
+                statusTitle.setText(R.string.health_unreliable_title)
+                statusMessage.setText(R.string.health_unreliable_message)
+                statusMessage.isVisible = true
+                statusRetry.isVisible = true
+            }
+            HealthState.OK -> Unit
+        }
     }
 
     /** Clear session, stop the service and return to Login. */

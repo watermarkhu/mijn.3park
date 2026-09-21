@@ -193,6 +193,27 @@ OkHttp, Material 3. Build config in `app/module.toml` (this project uses a
   owns the midnight-renewal alarm and keeps `Prefs`/UI in sync via
   `onStateChanged`.
 
+### Failure handling
+
+`TwoParkApi` classifies every failure so the UI can react precisely:
+
+- `ApiUnavailableException` — network/IO failure, timeout, HTTP 5xx/429.
+- `ApiIncompatibleException` — HTTP 4xx (other than 401/403), malformed/empty
+  JSON, unexpected `major`/`minor`, or a required payload key missing.
+- `AuthFailedException` — credentials rejected (never retried; log out).
+- `SessionExpiredException` — session cookie lost; `withAuthRetry` re-logs in
+  once and retries (only this class is retried).
+
+`AppViewModel` runs a **health check** (`start()` / `retry()` / `refresh()`) that
+probes the core read-only endpoints (categories, product details, balance —
+never the mutating ones, and not the paged history endpoints so it stays fast)
+and exposes a `HealthState` (`CHECKING`/`OK`/`UNAVAILABLE`/`UNRELIABLE`). The host
+activity shows a full-screen failure view (`view_status.xml`) over Park/History/
+Transactions when not `OK`; **Settings stays reachable**. Parking is disabled
+while unhealthy. `LoginActivity` shows the same view if `check_credentials`
+itself is unavailable/incompatible. Any failure in a fragment's direct API call
+is routed back via `vm.reportApiFailure()` / `reportSessionExpired()`.
+
 ### Conventions
 
 - UI strings live in `res/values/strings.xml`; Dutch in `res/values-nl/`. Mark

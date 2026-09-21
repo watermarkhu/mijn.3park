@@ -48,6 +48,14 @@
     <string name="topup_none">No top-up options available for this product</string>
     <string name="menu_logout">Log out</string>
     <string name="session_expired">Session expired, you have been logged out</string>
+
+    <!-- Health / failure screens -->
+    <string name="retry">Retry</string>
+    <string name="health_checking_title">Checking 2Park…</string>
+    <string name="health_unavailable_title">2Park is not available</string>
+    <string name="health_unavailable_message">Cannot reach 2Park right now. Please try again later.</string>
+    <string name="health_unreliable_title">Cannot connect to 2Park reliably</string>
+    <string name="health_unreliable_message">2Park returned unexpected data. Parking is disabled to avoid mistakes.</string>
     <string name="set_end_time">Set end time (optional)</string>
     <string name="clear">Clear</string>
     <string name="ends_at">Ends at %1$s</string>

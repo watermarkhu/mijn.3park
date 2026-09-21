@@ -14,13 +14,14 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
-open class TwoParkException(message: String) : Exception(message)
+open class TwoParkException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
  * The saved credentials were rejected by the server (or none are stored).
@@ -30,6 +31,19 @@ class AuthFailedException(message: String) : TwoParkException(message)
 
 /** The session cookie expired or was lost: a fresh login may recover. */
 class SessionExpiredException(message: String) : TwoParkException(message)
+
+/**
+ * The server could not be reached at all: a network/IO failure, a timeout, or
+ * a 5xx/429 response. The whole service is considered down.
+ */
+class ApiUnavailableException(message: String, cause: Throwable? = null) : TwoParkException(message, cause)
+
+/**
+ * The server answered, but not in the shape this app expects: an unexpected
+ * HTTP 4xx, malformed JSON, an unexpected status code, or a missing payload
+ * key. The API contract has probably drifted.
+ */
+class ApiIncompatibleException(message: String) : TwoParkException(message)
 
 fun normalizePlate(plate: String): String =
     plate.trim().uppercase(Locale.ROOT).replace("-", "").replace(" ", "")
@@ -203,19 +217,28 @@ class TwoParkApi {
                 .header("User-Agent", "Mozilla/5.0")
                 .build()
 
-            client.newCall(request).execute().use { response ->
+            val callResponse = try {
+                client.newCall(request).execute()
+            } catch (e: IOException) {
+                throw ApiUnavailableException("Cannot reach 2Park ($endpoint)", e)
+            }
+            callResponse.use { response ->
                 if (!response.isSuccessful) {
-                    if ((response.code == 401) || (response.code == 403)) {
-                        throw SessionExpiredException("HTTP ${response.code} for $endpoint")
+                    when {
+                        (response.code == 401) || (response.code == 403) ->
+                            throw SessionExpiredException("HTTP ${response.code} for $endpoint")
+                        (response.code >= 500) || (response.code == 429) ->
+                            throw ApiUnavailableException("HTTP ${response.code} for $endpoint")
+                        else ->
+                            throw ApiIncompatibleException("HTTP ${response.code} for $endpoint")
                     }
-                    throw TwoParkException("HTTP ${response.code} for $endpoint")
                 }
                 val text = response.body?.string()
-                    ?: throw TwoParkException("Empty response from $endpoint")
+                    ?: throw ApiIncompatibleException("Empty response from $endpoint")
                 try {
                     JSONObject(text)
                 } catch (_: Exception) {
-                    throw TwoParkException("Invalid JSON from $endpoint")
+                    throw ApiIncompatibleException("Invalid JSON from $endpoint")
                 }
             }
         }
@@ -228,10 +251,13 @@ class TwoParkApi {
         val message = status.optString("message")
 
         if (major != "OK") {
-            throw TwoParkException("2Park error: major=$major, minor=$minor, message=$message")
+            if (minor == "SESSION_TIMEOUT") {
+                throw SessionExpiredException("Session timeout for 2Park")
+            }
+            throw ApiIncompatibleException("2Park error: major=$major, minor=$minor, message=$message")
         }
         if (expectedMinor != null && minor != expectedMinor) {
-            throw TwoParkException("Unexpected 2Park status: expected $expectedMinor, got $minor")
+            throw ApiIncompatibleException("Unexpected 2Park status: expected $expectedMinor, got $minor")
         }
     }
 
@@ -267,17 +293,16 @@ class TwoParkApi {
     }
 
     /**
-     * Run [block]; when the failure looks like an expired session, log in
-     * once with the saved credentials and retry. Auth failures are never
-     * retried: they propagate as [AuthFailedException] so the caller logs out.
+     * Run [block]; when the failure is an expired session, log in once with
+     * the saved credentials and retry. Auth failures, unavailable servers and
+     * incompatible responses are never retried: they propagate so the caller
+     * can react (log out, or show the appropriate failure screen).
      */
     private suspend fun <T> withAuthRetry(block: suspend () -> T): T {
         ensureLoggedIn()
         return try {
             block()
-        } catch (e: AuthFailedException) {
-            throw e
-        } catch (e: TwoParkException) {
+        } catch (e: SessionExpiredException) {
             loggedIn = false
             ensureLoggedIn()
             block()
@@ -313,7 +338,10 @@ class TwoParkApi {
         assertOk(payload, expectedMinor = "SUCCESS")
 
         val products = mutableListOf<Product>()
-        val categories = payload.optJSONObject("data")?.optJSONArray("categories") ?: JSONArray()
+        val data = payload.optJSONObject("data")
+            ?: throw ApiIncompatibleException("get_categories: missing data")
+        val categories = data.optJSONArray("categories")
+            ?: throw ApiIncompatibleException("get_categories: missing categories")
         for (i in 0 until categories.length()) {
             val category = categories.optJSONObject(i) ?: continue
             val categoryName = category.optString("cty_name")
@@ -336,7 +364,7 @@ class TwoParkApi {
                 )
             }
         }
-        if (products.isEmpty()) throw TwoParkException("No usable 2Park product found")
+        if (products.isEmpty()) throw ApiIncompatibleException("No usable 2Park product found")
         products
     }
 
@@ -371,10 +399,12 @@ class TwoParkApi {
 
     suspend fun getDetails(productId: String): ProductDetails {
         val payload = getProductDetails(productId)
-        val data = payload.optJSONObject("data") ?: JSONObject()
+        val data = payload.optJSONObject("data")
+            ?: throw ApiIncompatibleException("get_category_product_details: missing data")
 
         val members = mutableListOf<Member>()
-        val rawMembers = data.optJSONArray("pdt_members") ?: JSONArray()
+        val rawMembers = data.optJSONArray("pdt_members")
+            ?: throw ApiIncompatibleException("get_category_product_details: missing pdt_members")
         for (i in 0 until rawMembers.length()) {
             val member = rawMembers.optJSONObject(i) ?: continue
             val action = extractActiveAction(member)
@@ -426,6 +456,7 @@ class TwoParkApi {
         val params = payload.optJSONObject("data")
             ?.optJSONObject("balance")
             ?.optJSONArray("ble_parameters")
+            ?: throw ApiIncompatibleException("get_balance: missing balance parameters")
         Balance(
             amount = extractParam(params, "AMOUNT")?.toDoubleOrNull(),
             currency = extractParam(params, "CURRENCY_DESC") ?: "€",
@@ -454,7 +485,11 @@ class TwoParkApi {
             ),
         )
         assertOk(payload)
-        val data = payload.optJSONObject("data") ?: JSONObject()
+        val data = payload.optJSONObject("data")
+            ?: throw ApiIncompatibleException("get_action_history: missing data")
+        if (!data.has("maxindex")) {
+            throw ApiIncompatibleException("get_action_history: missing maxindex")
+        }
         val actions = mutableListOf<ParkingAction>()
         val raw = data.optJSONArray("actions") ?: JSONArray()
         for (i in 0 until raw.length()) {
@@ -499,7 +534,11 @@ class TwoParkApi {
             ),
         )
         assertOk(payload)
-        val data = payload.optJSONObject("data") ?: JSONObject()
+        val data = payload.optJSONObject("data")
+            ?: throw ApiIncompatibleException("get_mutation_history: missing data")
+        if (!data.has("maxindex")) {
+            throw ApiIncompatibleException("get_mutation_history: missing maxindex")
+        }
         val mutations = mutableListOf<Mutation>()
         val raw = data.optJSONArray("mutations") ?: JSONArray()
         for (i in 0 until raw.length()) {
@@ -629,9 +668,9 @@ class TwoParkApi {
         )
         assertOk(payload)
         val data = payload.optJSONObject("data")
-            ?: throw TwoParkException("No transaction data received")
+            ?: throw ApiIncompatibleException("No transaction data received")
         val url = data.optString("forwarding_url")
-        if (url.isBlank()) throw TwoParkException("No payment URL received")
+        if (url.isBlank()) throw ApiIncompatibleException("No payment URL received")
 
         val parameters = mutableListOf<Pair<String, String>>()
         val rawParams = data.optJSONArray("parameters") ?: JSONArray()
@@ -656,7 +695,7 @@ class TwoParkApi {
      */
     suspend fun resolveTopupBrowserUrl(forward: TopupForward): String = withContext(Dispatchers.IO) {
         val base = forward.url.toHttpUrlOrNull()
-            ?: throw TwoParkException("Invalid payment URL")
+            ?: throw ApiIncompatibleException("Invalid payment URL")
 
         if (forward.method.equals("GET", ignoreCase = true)) {
             val builder = base.newBuilder()
@@ -679,12 +718,17 @@ class TwoParkApi {
         var lastUrl = forward.url
         var hops = 0
         while (current != null && hops < 5) {
-            noRedirectClient.newCall(current).execute().use { resp ->
+            val callResponse = try {
+                noRedirectClient.newCall(current).execute()
+            } catch (e: IOException) {
+                throw ApiUnavailableException("Cannot reach payment provider", e)
+            }
+            callResponse.use { resp ->
                 lastUrl = resp.request.url.toString()
                 val location = resp.header("Location")
                 if (resp.isRedirect && location != null) {
                     val next = resp.request.url.resolve(location)
-                        ?: throw TwoParkException("Invalid payment redirect")
+                        ?: throw ApiIncompatibleException("Invalid payment redirect")
                     lastUrl = next.toString()
                     // Once we leave 2park, hand the provider URL to the browser.
                     val stillOn2park =
