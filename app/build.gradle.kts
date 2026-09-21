@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 
 android {
@@ -34,18 +33,22 @@ android {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_1_8)
-        }
-    }
 
-    // Acode layout keeps Kotlin sources under src/main/kotlin; include it
-    // alongside the Gradle default src/main/java.
+    // Acode layout keeps Kotlin sources under src/main/kotlin. With built-in
+    // Kotlin the directory must be added to the kotlin source set (adding it
+    // to the java set is no longer supported).
     sourceSets {
         getByName("main") {
-            java.srcDirs("src/main/kotlin")
+            kotlin.srcDir("src/main/kotlin")
         }
+    }
+}
+
+// Built-in Kotlin (AGP 9+) provides the top-level kotlin {} extension. jvmTarget
+// otherwise defaults to android.compileOptions.targetCompatibility.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_1_8)
     }
 }
 
