@@ -5,7 +5,7 @@ plugins {
 android {
     namespace = "com.watermarkhu.mijn3park"
     compileSdk = 37
-    buildToolsVersion = "35.0.0"
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "com.watermarkhu.mijn3park"
