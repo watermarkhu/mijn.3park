@@ -56,6 +56,9 @@
     <string name="health_unavailable_message">Cannot reach 2Park right now. Please try again later.</string>
     <string name="health_unreliable_title">Cannot connect to 2Park reliably</string>
     <string name="health_unreliable_message">2Park returned unexpected data. Parking is disabled to avoid mistakes.</string>
+
+    <!-- Affiliation disclaimer -->
+    <string name="disclaimer">mijn.3park is an unofficial app and is not affiliated with mijn.2park.nl. It is a solo project, built because the official mijn.2park.nl interface is awkward to use. No data is sent to third parties — the app connects directly to 2Park, and your details are kept only on this device.</string>
     <string name="set_end_time">Set end time (optional)</string>
     <string name="clear">Clear</string>
     <string name="ends_at">Ends at %1$s</string>

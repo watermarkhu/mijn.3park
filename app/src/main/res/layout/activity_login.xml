@@ -79,6 +79,15 @@
                 android:layout_marginTop="16dp"
                 android:indeterminate="true"
                 android:visibility="gone"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:gravity="center"
+                android:text="@string/disclaimer"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant"/>
         </LinearLayout>
     </ScrollView>
 
