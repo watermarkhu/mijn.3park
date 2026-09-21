@@ -134,7 +134,7 @@ jobs:
       - name: Publish to Google Play
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
-          serviceAccountJsonPlainText: ${{ steps.auth.outputs.credentials_file_path }}
+          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
           packageName: com.watermarkhu.mijn3park
           releaseFiles: ${{ steps.pkg.outputs.aab }}
           tracks: internal
