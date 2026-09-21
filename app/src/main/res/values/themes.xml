@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- No color overrides: let Material You dynamic color do its thing. -->
-    <style name="Theme.App" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar"/>
+    <style name="Theme.App" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+        <!-- Dark status-bar icons on the light theme, so they stay visible. -->
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
 </resources>
