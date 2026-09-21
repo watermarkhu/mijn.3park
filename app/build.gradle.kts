@@ -10,7 +10,7 @@ android {
     defaultConfig {
         applicationId = "com.watermarkhu.mijn3park"
         minSdk = 23
-        targetSdk = 35
+        targetSdk = 36
         // Placeholders for local/debug builds. release.yml patches these with
         // the real versionName (semantic version) and versionCode (GitHub
         // release count) before building the published bundle.
@@ -59,8 +59,8 @@ android {
         warningsAsErrors = true
         checkDependencies = true
         baseline = file("lint-baseline.xml")
-        // targetSdk is intentionally conservative (see AGENTS.md), so the
-        // "target the latest Android version" reminder must not fail builds.
+        // targetSdk tracks the Google Play minimum, which lags the newest API
+        // level lint knows about, so don't fail builds on OldTargetApi.
         disable += "OldTargetApi"
     }
 }

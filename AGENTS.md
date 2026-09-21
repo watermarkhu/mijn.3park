@@ -222,8 +222,9 @@ is routed back via `vm.reportApiFailure()` / `reportSessionExpired()`.
   state, not literal colors. The Dutch plate (black-on-yellow) is a deliberate
   skeuomorphic exception.
 - Minimum SDK is 23 (required by `EncryptedSharedPreferences`). `deleteSharedPreferences`
-  is API 24+, so guard it. targetSdk 35 (`SCHEDULE_EXACT_ALARM` and
-  `foregroundServiceType="specialUse"` are declared accordingly).
+  is API 24+, so guard it. targetSdk 36 (the Google Play minimum;
+  `SCHEDULE_EXACT_ALARM` and `foregroundServiceType="specialUse"` are declared
+  accordingly).
 
 ### Security posture (already applied)
 
