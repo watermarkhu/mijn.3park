@@ -98,4 +98,8 @@
     <string name="notification_stop_failed">Stop failed: %1$s</string>
     <string name="notification_logged_out">Logged out, please log in again</string>
     <string name="notification_action_stop">Stop</string>
+
+    <!-- Foreground service special-use declaration (Google Play). Manifest
+         resources must not vary by configuration, so this is not translated. -->
+    <string name="fgs_special_use_subtype" translatable="false">Keeps an active parking session running, with a persistent notification, and renews it after midnight until the user stops it.</string>
 </resources>
