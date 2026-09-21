@@ -2,10 +2,7 @@ package dev.watermarkhu.mijn3park
 
 import android.content.Intent
 import android.content.res.ColorStateList
-import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
-import android.text.Editable
 import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
@@ -15,6 +12,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
@@ -39,6 +37,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.time.Duration.Companion.seconds
 
 class MainActivity : AppCompatActivity() {
 
@@ -48,8 +47,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var productDropdown: MaterialAutoCompleteTextView
     private lateinit var plateInput: MaterialAutoCompleteTextView
     private lateinit var plateChips: ChipGroup
-    /** Plate chips paired with the plate they insert, for highlighting. */
-    private val plateChipViews = mutableListOf<Pair<Chip, String>>()
     private lateinit var statusText: TextView
     private lateinit var toggleButton: MaterialButton
     private lateinit var progress: LinearProgressIndicator
@@ -79,7 +76,7 @@ class MainActivity : AppCompatActivity() {
 
     /** Permit products (fixed plate) have no balance, no start/stop. */
     private val isPermitProduct: Boolean
-        get() = productDetails?.fixedPlate != null || currentProduct?.hasFixedPlate == true
+        get() = (productDetails?.fixedPlate != null) || (currentProduct?.hasFixedPlate == true)
 
     private companion object {
         const val KEY_SELECTED_END_AT = "selected_end_at"
@@ -162,7 +159,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, error, Toast.LENGTH_LONG).show()
                 ParkingService.lastError = null
             }
-            setBusy(false)
+            setBusy(busy = false)
         }
         renderState()
         if (refreshOnResume) {
@@ -213,7 +210,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun onToggleParking() {
         if (prefs.isParking) {
-            setBusy(true)
+            setBusy(busy = true)
             ParkingService.stop(this)
             return
         }
@@ -224,7 +221,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         productDetails?.let { details ->
-            if (plate == details.fixedPlate && details.fixedPlateActive) {
+            if ((plate == details.fixedPlate) && details.fixedPlateActive) {
                 Toast.makeText(
                     this,
                     getString(R.string.fixed_plate_covered, plate),
@@ -239,7 +236,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Drop stale end times that passed while idle; never start in the past.
-        if (selectedEndAt > 0L && selectedEndAt <= System.currentTimeMillis()) {
+        if ((selectedEndAt > 0L) && (selectedEndAt <= System.currentTimeMillis())) {
             selectedEndAt = 0L
             renderState()
             Toast.makeText(this, R.string.error_past_time, Toast.LENGTH_LONG).show()
@@ -249,7 +246,7 @@ class MainActivity : AppCompatActivity() {
         val endAt = selectedEndAt
         prefs.rememberPlate(plate)
         renderPlateChips()
-        setBusy(true)
+        setBusy(busy = true)
         ParkingService.start(this, plate, endAt)
     }
 
@@ -265,7 +262,7 @@ class MainActivity : AppCompatActivity() {
                         this@MainActivity,
                         android.R.layout.simple_list_item_1,
                         products.map { it.displayName },
-                    )
+                    ),
                 )
                 // Preselect the default product once per app start.
                 if (!appliedDefaultProduct) {
@@ -280,7 +277,7 @@ class MainActivity : AppCompatActivity() {
                     selectProduct(products.first())
                 }
                 updateDefaultStar()
-            } catch (e: AuthFailedException) {
+            } catch (_: AuthFailedException) {
                 autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
@@ -335,7 +332,7 @@ class MainActivity : AppCompatActivity() {
                         this@MainActivity,
                         android.R.layout.simple_list_item_1,
                         suggestions,
-                    )
+                    ),
                 )
 
                 // Permits are not prepaid: no balance to show or top up.
@@ -359,7 +356,7 @@ class MainActivity : AppCompatActivity() {
                     ParkingService.stop(this@MainActivity)
                 }
                 renderState()
-            } catch (e: AuthFailedException) {
+            } catch (_: AuthFailedException) {
                 autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
@@ -378,9 +375,11 @@ class MainActivity : AppCompatActivity() {
         ParkingService.stop(this)
         api.logout()
         prefs.clearAll()
-        startActivity(Intent(this, LoginActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        })
+        startActivity(
+            Intent(this, LoginActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            },
+        )
         finish()
     }
 
@@ -420,8 +419,8 @@ class MainActivity : AppCompatActivity() {
         }
         val picker = MaterialTimePicker.Builder()
             .setTitleText(R.string.pick_end_time)
-            .setHour(preset.get(Calendar.HOUR_OF_DAY))
-            .setMinute(preset.get(Calendar.MINUTE))
+            .setHour(preset[Calendar.HOUR_OF_DAY])
+            .setMinute(preset[Calendar.MINUTE])
             .setTimeFormat(
                 if (android.text.format.DateFormat.is24HourFormat(this)) TimeFormat.CLOCK_24H
                 else TimeFormat.CLOCK_12H
@@ -434,9 +433,9 @@ class MainActivity : AppCompatActivity() {
                 timeInMillis = dateUtcMillis
             }
             val picked = Calendar.getInstance().apply {
-                set(Calendar.YEAR, zoneDay.get(Calendar.YEAR))
-                set(Calendar.MONTH, zoneDay.get(Calendar.MONTH))
-                set(Calendar.DAY_OF_MONTH, zoneDay.get(Calendar.DAY_OF_MONTH))
+                set(Calendar.YEAR, zoneDay[Calendar.YEAR])
+                set(Calendar.MONTH, zoneDay[Calendar.MONTH])
+                set(Calendar.DAY_OF_MONTH, zoneDay[Calendar.DAY_OF_MONTH])
                 set(Calendar.HOUR_OF_DAY, picker.hour)
                 set(Calendar.MINUTE, picker.minute)
                 set(Calendar.SECOND, 0)
@@ -457,7 +456,7 @@ class MainActivity : AppCompatActivity() {
     private fun formatEndShort(endAtMillis: Long): String {
         val endDay = Calendar.getInstance().apply { timeInMillis = endAtMillis }
         val today = Calendar.getInstance()
-        val sameDay = endDay.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+        val sameDay = endDay[Calendar.YEAR] == today[Calendar.YEAR] &&
             endDay.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
         val pattern = if (sameDay) "HH:mm" else "EEE d MMM, HH:mm"
         return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(endAtMillis))
@@ -492,7 +491,7 @@ class MainActivity : AppCompatActivity() {
         if (!prefs.isParking || prefs.activeEndAt <= 0L) return
         countdownJob = lifecycleScope.launch {
             while (isActive) {
-                delay(1_000L)
+                delay(1.seconds)
                 updateCountdown()
             }
         }
@@ -517,7 +516,8 @@ class MainActivity : AppCompatActivity() {
 
         // Plates saved on the 2park account (with nickname when set).
         val fixedPlate = productDetails?.fixedPlate
-        val serverPlates = serverMembers.map { it.plate }.toSet() + setOfNotNull(fixedPlate)
+        val serverPlates =
+            serverMembers.asSequence().map { it.plate }.toSet() + setOfNotNull(fixedPlate)
         serverMembers.filter { it.plate != fixedPlate }.forEach { member ->
             val chip = Chip(this).apply {
                 text = member.nickname?.let { "$it · ${member.plate}" } ?: member.plate
@@ -594,7 +594,7 @@ class MainActivity : AppCompatActivity() {
                     .setItems(labels) { _, which -> startTopup(options[which]) }
                     .setNegativeButton(R.string.cancel, null)
                     .show()
-            } catch (e: AuthFailedException) {
+            } catch (_: AuthFailedException) {
                 autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
@@ -612,8 +612,8 @@ class MainActivity : AppCompatActivity() {
                 val forward = api.startTopup(categoryId, prefs.productId, amount)
                 val browserUrl = api.resolveTopupBrowserUrl(forward)
                 refreshOnResume = true
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
-            } catch (e: AuthFailedException) {
+                startActivity(Intent(Intent.ACTION_VIEW, browserUrl.toUri()))
+            } catch (_: AuthFailedException) {
                 autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
@@ -673,7 +673,7 @@ class MainActivity : AppCompatActivity() {
                 prefs.savedPlates = prefs.savedPlates.filter { it != plate }
                 Toast.makeText(this@MainActivity, R.string.favorite_saved, Toast.LENGTH_SHORT).show()
                 refreshRemoteData()
-            } catch (e: AuthFailedException) {
+            } catch (_: AuthFailedException) {
                 autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
@@ -689,7 +689,7 @@ class MainActivity : AppCompatActivity() {
                 api.removeFavorite(prefs.productId, member.plate, member.nickname)
                 Toast.makeText(this@MainActivity, R.string.favorite_deleted, Toast.LENGTH_SHORT).show()
                 refreshRemoteData()
-            } catch (e: AuthFailedException) {
+            } catch (_: AuthFailedException) {
                 autoLogout()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()

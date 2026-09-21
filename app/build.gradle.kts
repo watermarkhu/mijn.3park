@@ -1,20 +1,20 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
 
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 android {
     namespace = "dev.watermarkhu.mijn3park"
-    compileSdk = 36
-    buildToolsVersion = "36.0.0"
+    compileSdk = 35
+    buildToolsVersion = "35.0.0"
 
     defaultConfig {
         applicationId = "dev.watermarkhu.mijn3park"
         minSdk = 23
-        // Mirrors app/module.toml (targetSdk = 30).
-        targetSdk = 30
+        // Mirrors app/module.toml (targetSdk = 35).
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
     }
@@ -44,17 +44,17 @@ android {
     // alongside the Gradle default src/main/java.
     sourceSets {
         getByName("main") {
-            java.srcDir("src/main/kotlin")
+            java.srcDirs("src/main/kotlin")
         }
     }
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.10")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.4.20")
+    implementation("com.google.android.material:material:1.14.0")
+    implementation("androidx.appcompat:appcompat:1.8.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("androidx.security:security-crypto:1.1.0")
 }

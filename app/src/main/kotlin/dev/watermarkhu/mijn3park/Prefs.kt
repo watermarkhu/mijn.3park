@@ -3,6 +3,7 @@ package dev.watermarkhu.mijn3park
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import org.json.JSONArray
@@ -22,7 +23,7 @@ class Prefs(context: Context) {
             .build()
         return try {
             buildEncrypted(context, masterKey)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Keystore key or backing file became unreadable (e.g. corruption):
             // discard and recreate so the app stays usable. Requires re-login.
             deletePrefs(context)
@@ -34,8 +35,9 @@ class Prefs(context: Context) {
         if (Build.VERSION.SDK_INT >= 24) {
             context.deleteSharedPreferences(PREFS_NAME)
         } else {
-            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .edit().clear().commit()
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit {
+                clear()
+            }
             File(File(context.applicationInfo.dataDir, "shared_prefs"), "$PREFS_NAME.xml").delete()
         }
     }
@@ -91,10 +93,10 @@ class Prefs(context: Context) {
             val raw = prefs.getString("saved_plates", "[]") ?: "[]"
             return try {
                 val array = JSONArray(raw)
-                (0 until array.length()).mapNotNull { array.optString(it).takeIf { p -> p.isNotBlank() } }
-            } catch (e: Exception) {
-                emptyList()
-            }
+            (0 until array.length()).mapNotNull { array.optString(it).takeIf { p -> p.isNotBlank() } }
+        } catch (_: Exception) {
+            emptyList()
+        }
         }
         set(value) {
             val array = JSONArray()

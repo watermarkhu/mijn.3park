@@ -18,6 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 open class TwoParkException(message: String) : Exception(message)
 
@@ -42,7 +43,7 @@ data class Product(
     val categoryId: String = "",
 ) {
     val displayName: String
-        get() = if (category.isNotBlank() && category != name) "$name ($category)" else name
+        get() = if (category.isNotBlank() && (category != name)) "$name ($category)" else name
 
     /** FLPN products have a fixed license plate bound to the permit. */
     val hasFixedPlate: Boolean
@@ -81,7 +82,7 @@ data class Balance(
     val lastModified: String?,
 ) {
     val formatted: String
-        get() = amount?.let { String.format(Locale("nl", "NL"), "%s %.2f", currency, it) } ?: "—"
+        get() = amount?.let { String.format(Locale.forLanguageTag("nl-NL"), "%s %.2f", currency, it) } ?: "—"
 }
 
 /**
@@ -98,8 +99,8 @@ class TwoParkApi {
     companion object {
         const val BASE_URL = "https://mijn.2park.nl"
         const val LOCALE = "nl_NL"
-        private val TIME_FORMAT = "dd-MM-yyyy HH:mm:ss"
-        private val DATE_FORMAT = "dd-MM-yyyy"
+        private const val TIME_FORMAT = "dd-MM-yyyy HH:mm:ss"
+        private const val DATE_FORMAT = "dd-MM-yyyy"
 
         // Shared instance so MainActivity and ParkingService reuse one session.
         val instance: TwoParkApi by lazy { TwoParkApi() }
@@ -114,18 +115,20 @@ class TwoParkApi {
     private val cookieStore = mutableMapOf<String, List<Cookie>>()
 
     private val client = OkHttpClient.Builder()
-        .cookieJar(object : CookieJar {
-            override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-                synchronized(cookieStore) {
-                    val existing = cookieStore[url.host].orEmpty()
-                        .filter { old -> cookies.none { it.name == old.name } }
-                    cookieStore[url.host] = existing + cookies
+        .cookieJar(
+            object : CookieJar {
+                override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+                    synchronized(cookieStore) {
+                        val existing = cookieStore[url.host].orEmpty()
+                            .filter { old -> cookies.none { it.name == old.name } }
+                        cookieStore[url.host] = existing + cookies
+                    }
                 }
-            }
 
-            override fun loadForRequest(url: HttpUrl): List<Cookie> =
-                synchronized(cookieStore) { cookieStore[url.host].orEmpty() }
-        })
+                override fun loadForRequest(url: HttpUrl): List<Cookie> =
+                    synchronized(cookieStore) { cookieStore[url.host].orEmpty() }
+            },
+        )
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
@@ -133,7 +136,7 @@ class TwoParkApi {
     // Shares the cookie jar but does not auto-follow redirects, so the payment
     // provider's redirect URL can be captured and opened in the system browser.
     private val noRedirectClient = client.newBuilder()
-        .followRedirects(false)
+        .followRedirects(followRedirects = false)
         .followSslRedirects(false)
         .build()
 
@@ -162,7 +165,7 @@ class TwoParkApi {
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    if (response.code == 401 || response.code == 403) {
+                    if ((response.code == 401) || (response.code == 403)) {
                         throw SessionExpiredException("HTTP ${response.code} for $endpoint")
                     }
                     throw TwoParkException("HTTP ${response.code} for $endpoint")
@@ -171,7 +174,7 @@ class TwoParkApi {
                     ?: throw TwoParkException("Empty response from $endpoint")
                 try {
                     JSONObject(text)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     throw TwoParkException("Invalid JSON from $endpoint")
                 }
             }
@@ -208,10 +211,10 @@ class TwoParkApi {
         )
         try {
             assertOk(payload, expectedMinor = "AUTHENTICATED")
-        } catch (e: TwoParkException) {
+        } catch (_: TwoParkException) {
             // Rejected by the server (wrong/changed password, revoked account):
             // retrying with the same credentials cannot succeed.
-            throw AuthFailedException(e.message ?: "Login rejected")
+            throw AuthFailedException("Login rejected")
         }
         loggedIn = true
     }
@@ -435,7 +438,7 @@ class TwoParkApi {
         // Verify the action is actually active and fetch its id.
         repeat(3) {
             findActiveMember(productId, plateNorm)?.actionId?.let { return it }
-            delay(1000)
+            delay(1.seconds)
         }
         throw TwoParkException("Start not confirmed for $plateNorm")
     }
