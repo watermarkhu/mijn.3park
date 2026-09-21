@@ -134,7 +134,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun applyHealth(health: HealthState) {
         val onSettings = bottomNav.selectedItemId == R.id.nav_settings
-        val showStatus = health != HealthState.OK && !onSettings
+        val showStatus = (health != HealthState.OK) && !onSettings
         statusContainer.isVisible = showStatus
         navHost.isVisible = !showStatus
         if (!showStatus) return
@@ -163,7 +163,6 @@ class MainActivity : AppCompatActivity() {
                 statusMessage.isVisible = true
                 statusRetry.isVisible = true
             }
-            HealthState.OK -> Unit
         }
     }
 
