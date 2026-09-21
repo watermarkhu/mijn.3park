@@ -33,6 +33,15 @@ android {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
+
+    lint {
+        // Fail the build on lint errors and on any warning not already
+        // recorded in the baseline (see app/lint-baseline.xml).
+        abortOnError = true
+        warningsAsErrors = true
+        checkDependencies = true
+        baseline = file("lint-baseline.xml")
+    }
 }
 
 dependencies {
@@ -41,10 +50,12 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.8.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
-    implementation("androidx.fragment:fragment-ktx:1.8.9")
+    implementation("androidx.fragment:fragment-ktx:1.9.0")
     implementation("androidx.recyclerview:recyclerview:1.4.0")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
     implementation("androidx.security:security-crypto:1.1.0")
+
+    testImplementation("junit:junit:4.13.2")
 }

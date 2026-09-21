@@ -6,9 +6,9 @@ Compares the source of truth (app/module.toml) against app/build.gradle.kts:
   - compileSdk, minSdk, targetSdk, versionCode, versionName
   - languageLevel JAVA_8  <->  JavaVersion.VERSION_1_8 (jvmTarget defaults to
     targetCompatibility under AGP built-in Kotlin, so it isn't set explicitly)
-  - every module.toml implementation entry present in Gradle with the same
-    version (entries without a version, e.g. "kotlin-stdlib", only require
-    the artifact to be present)
+  - every module.toml implementation/testImplementation entry present in Gradle
+    with the same version (entries without a version, e.g. "kotlin-stdlib",
+    only require the artifact to be present)
   - manifest path exists, build types don't enable minification
 
 Stdlib only (tomllib needs Python >= 3.11, as on ubuntu-latest runners).
@@ -89,34 +89,40 @@ def main() -> int:
             errors.append('languageLevel JAVA_8 requires JavaVersion.VERSION_1_8 in compileOptions')
 
     # --- dependencies ---
-    gradle_deps = set(re.findall(r'implementation\("([^"]+)"\)', gradle))
-    for entry in module.get("dependencies", {}).get("implementation", []):
-        parts = entry.split(":")
-        if len(parts) == 1:  # bare artifact, e.g. "kotlin-stdlib": version unpinned
-            if not any(entry in dep for dep in gradle_deps):
-                errors.append(f"dependency {entry!r} from module.toml missing in build.gradle.kts")
-        elif len(parts) == 3:  # group:name:version must match exactly
-            if entry not in gradle_deps:
-                errors.append(
-                    f"dependency {entry!r} from module.toml missing or version-drifted "
-                    f"in build.gradle.kts (has {sorted(d for d in gradle_deps if parts[1] in d) or 'nothing'})"
-                )
-        else:
-            errors.append(f"unparseable dependency entry {entry!r} in module.toml")
+    module_deps = module.get("dependencies", {})
+    for scope in ("implementation", "testImplementation"):
+        gradle_deps = set(re.findall(rf'{scope}\("([^"]+)"\)', gradle))
+        for entry in module_deps.get(scope, []):
+            parts = entry.split(":")
+            if len(parts) == 1:  # bare artifact, e.g. "kotlin-stdlib": version unpinned
+                if not any(entry in dep for dep in gradle_deps):
+                    errors.append(
+                        f"{scope} dependency {entry!r} from module.toml missing in build.gradle.kts"
+                    )
+            elif len(parts) == 3:  # group:name:version must match exactly
+                if entry not in gradle_deps:
+                    errors.append(
+                        f"{scope} dependency {entry!r} from module.toml missing or version-drifted "
+                        f"in build.gradle.kts (has {sorted(d for d in gradle_deps if parts[1] in d) or 'nothing'})"
+                    )
+            else:
+                errors.append(f"unparseable dependency entry {entry!r} in module.toml")
 
-    for dep in sorted(gradle_deps):
-        dep_parts = dep.split(":")
-        dep_key = ":".join(dep_parts[:2]) if len(dep_parts) >= 3 else dep
-        dep_artifact = dep_parts[1] if len(dep_parts) >= 3 else dep
-        known = False
-        for e in module.get("dependencies", {}).get("implementation", []):
-            e_parts = e.split(":")
-            if len(e_parts) == 1 and e == dep_artifact:
-                known = True
-            elif len(e_parts) == 3 and ":".join(e_parts[:2]) == dep_key:
-                known = True
-        if not known:
-            errors.append(f"dependency {dep!r} in build.gradle.kts has no counterpart in module.toml")
+        for dep in sorted(gradle_deps):
+            dep_parts = dep.split(":")
+            dep_key = ":".join(dep_parts[:2]) if len(dep_parts) >= 3 else dep
+            dep_artifact = dep_parts[1] if len(dep_parts) >= 3 else dep
+            known = False
+            for e in module_deps.get(scope, []):
+                e_parts = e.split(":")
+                if len(e_parts) == 1 and e == dep_artifact:
+                    known = True
+                elif len(e_parts) == 3 and ":".join(e_parts[:2]) == dep_key:
+                    known = True
+            if not known:
+                errors.append(
+                    f"{scope} dependency {dep!r} in build.gradle.kts has no counterpart in module.toml"
+                )
 
     # --- manifest ---
     manifest = android.get("manifest")

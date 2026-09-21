@@ -55,6 +55,16 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
+      - name: Lint
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:lintDebug --stacktrace
+
+      - name: Unit tests
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testDebugUnitTest --stacktrace
+
       - name: Build debug APK
         run: |
           chmod +x gradlew
