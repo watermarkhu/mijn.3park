@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Bottom navigation -->
+    <string name="nav_park">Parkeren</string>
+    <string name="nav_history">Historie</string>
+    <string name="nav_transactions">Transacties</string>
+    <string name="nav_settings">Instellingen</string>
+
     <!-- Login -->
     <string name="login_title">Inloggen met mijn.2park.nl</string>
     <string name="email">E-mailadres</string>
@@ -44,6 +50,21 @@
     <string name="pick_end_date">Einddatum</string>
     <string name="pick_end_time">Eindtijd</string>
     <string name="error_past_time">Eindtijd moet in de toekomst liggen</string>
+
+    <!-- Settings -->
+    <string name="settings_account">Account</string>
+    <string name="settings_theme">Thema</string>
+    <string name="settings_theme_system">Systeem</string>
+    <string name="settings_theme_light">Licht</string>
+    <string name="settings_theme_dark">Donker</string>
+
+    <!-- History & transactions -->
+    <string name="history_empty">Nog geen parkeeracties</string>
+    <string name="transactions_empty">Nog geen transacties</string>
+    <string name="history_location">Locatie: %1$s</string>
+    <string name="history_period">%1$s – %2$s</string>
+    <string name="history_cost">Kosten: %1$s</string>
+    <string name="transaction_plate">Kenteken: %1$s</string>
 
     <!-- Notification -->
     <string name="notification_channel_name">Actief parkeren</string>

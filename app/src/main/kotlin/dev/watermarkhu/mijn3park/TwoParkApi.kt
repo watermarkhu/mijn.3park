@@ -85,6 +85,46 @@ data class Balance(
         get() = amount?.let { String.format(Locale.forLanguageTag("nl-NL"), "%s %.2f", currency, it) } ?: "—"
 }
 
+/** One row of the parking history (`get_action_history.json`). */
+data class ParkingAction(
+    val id: String,
+    val plate: String,
+    val timeStart: String?,
+    val timeEnd: String?,
+    val location: String?,
+    val cost: String?,
+    val costUnit: String?,
+    val state: String?,
+    val chained: Boolean,
+)
+
+data class ActionHistoryPage(
+    val startIndex: Int,
+    val stopIndex: Int,
+    val maxIndex: Int,
+    val actions: List<ParkingAction>,
+)
+
+/** One row of the balance mutation history (`get_mutation_history.json`). */
+data class Mutation(
+    /** Server-provided label, e.g. "Afboeking" (debit) or "Bijschrijving" (credit). */
+    val type: String,
+    val amount: String,
+    val unit: String,
+    val date: String,
+    val plate: String,
+) {
+    val isDebit: Boolean
+        get() = type.equals("Afboeking", ignoreCase = true) || amount.toDoubleOrNull()?.let { it < 0 } == true
+}
+
+data class MutationHistoryPage(
+    val startIndex: Int,
+    val stopIndex: Int,
+    val maxIndex: Int,
+    val mutations: List<Mutation>,
+)
+
 /**
  * Async client for the undocumented mijn.2park.nl web endpoints.
  *
@@ -390,6 +430,96 @@ class TwoParkApi {
             amount = extractParam(params, "AMOUNT")?.toDoubleOrNull(),
             currency = extractParam(params, "CURRENCY_DESC") ?: "€",
             lastModified = extractParam(params, "LAST_MODIFIED"),
+        )
+    }
+
+    private fun paramAt(params: JSONArray?, index: Int): String? {
+        if (params == null || index < 0 || index >= params.length()) return null
+        return params.optJSONObject(index)?.optString("prr_value")?.takeIf { it.isNotBlank() }
+    }
+
+    /** Parking history, paged by [startIndex]/[stopIndex] (10 rows per page). */
+    suspend fun getActionHistory(
+        productId: String,
+        startIndex: Int,
+        stopIndex: Int,
+    ): ActionHistoryPage = withAuthRetry {
+        val payload = postForm(
+            "get_action_history.json",
+            mapOf(
+                "product_id" to productId,
+                "locale" to LOCALE,
+                "startindex" to startIndex.toString(),
+                "stopindex" to stopIndex.toString(),
+            ),
+        )
+        assertOk(payload)
+        val data = payload.optJSONObject("data") ?: JSONObject()
+        val actions = mutableListOf<ParkingAction>()
+        val raw = data.optJSONArray("actions") ?: JSONArray()
+        for (i in 0 until raw.length()) {
+            val action = raw.optJSONObject(i) ?: continue
+            val params = action.optJSONArray("atn_parameters")
+            val plate = extractParam(params, "MBR_IDENT") ?: paramAt(params, 0)
+            actions.add(
+                ParkingAction(
+                    id = action.optString("atn_id"),
+                    plate = normalizePlate(plate.orEmpty()),
+                    timeStart = extractParam(params, "TIMESTART") ?: paramAt(params, 1),
+                    timeEnd = extractParam(params, "TIMEEND") ?: paramAt(params, 2),
+                    location = extractParam(params, "LOCATION") ?: paramAt(params, 3),
+                    cost = extractParam(params, "COST") ?: paramAt(params, 4),
+                    costUnit = paramAt(params, 5),
+                    state = action.optString("atn_state").takeIf { it.isNotBlank() },
+                    chained = action.optString("atn_chained") == "YES",
+                )
+            )
+        }
+        ActionHistoryPage(
+            startIndex = data.optString("startindex").toIntOrNull() ?: startIndex,
+            stopIndex = data.optString("stopindex").toIntOrNull() ?: stopIndex,
+            maxIndex = data.optString("maxindex").toIntOrNull() ?: 0,
+            actions = actions,
+        )
+    }
+
+    /** Balance mutation history, paged by [startIndex]/[stopIndex]. */
+    suspend fun getMutationHistory(
+        productId: String,
+        startIndex: Int,
+        stopIndex: Int,
+    ): MutationHistoryPage = withAuthRetry {
+        val payload = postForm(
+            "get_mutation_history.json",
+            mapOf(
+                "product_id" to productId,
+                "locale" to LOCALE,
+                "startindex" to startIndex.toString(),
+                "stopindex" to stopIndex.toString(),
+            ),
+        )
+        assertOk(payload)
+        val data = payload.optJSONObject("data") ?: JSONObject()
+        val mutations = mutableListOf<Mutation>()
+        val raw = data.optJSONArray("mutations") ?: JSONArray()
+        for (i in 0 until raw.length()) {
+            val mutation = raw.optJSONObject(i) ?: continue
+            val params = mutation.optJSONArray("mtn_parameters")
+            mutations.add(
+                Mutation(
+                    type = paramAt(params, 0).orEmpty(),
+                    amount = paramAt(params, 1).orEmpty(),
+                    unit = paramAt(params, 2).orEmpty(),
+                    date = paramAt(params, 3).orEmpty(),
+                    plate = normalizePlate(paramAt(params, 4).orEmpty()),
+                )
+            )
+        }
+        MutationHistoryPage(
+            startIndex = data.optString("startindex").toIntOrNull() ?: startIndex,
+            stopIndex = data.optString("stopindex").toIntOrNull() ?: stopIndex,
+            maxIndex = data.optString("maxindex").toIntOrNull() ?: 0,
+            mutations = mutations,
         )
     }
 

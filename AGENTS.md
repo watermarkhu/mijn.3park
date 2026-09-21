@@ -50,10 +50,12 @@ Every response has a status envelope:
 | `get_upgrade_units.json` | `product_id`, `locale`, `startindex`, `stopindex` | Top-up amounts |
 | `start_transaction.json` | `category_id`, `product_id`, `pay_amount`, `locale` | Begin top-up payment |
 | `get_available_actions.json` | `product_id` | Count of allowed concurrent actions |
+| `get_action_history.json` | `product_id`, `locale`, `startindex`, `stopindex` | Parking history (paged) |
+| `get_mutation_history.json` | `product_id`, `locale`, `startindex`, `stopindex` | Balance mutation history (paged) |
 | `force_single_active_action_product.json` | `locale`, `product_id`, `mbr_ident` | Swap the single active plate (not used yet) |
 
-Other endpoints exist in the web bundle (history, grants, APK register,
-payment status, thresholds) but are not used by this app.
+Other endpoints exist in the web bundle (grants, APK register, payment status,
+thresholds) but are not used by this app.
 
 ### Data shapes
 
@@ -72,6 +74,17 @@ payment status, thresholds) but are not used by this app.
   `CURRENCY_DESC`, `LAST_MODIFIED`.
 - **Top-up units** (`get_upgrade_units` → `data.upgrade_units[].uut_parameters[]`):
   `PAY_AMOUNT` (e.g. `"10.00"`), `UPGRADE_AMOUNT`, `UPGRADE_DESCRIPTION`.
+- **Parking history** (`get_action_history` → `data.actions[]`): paged by
+  `startindex`/`stopindex` (10/page); response also has `startindex`,
+  `stopindex`, `maxindex`. Each action has `atn_id`, `atn_chained`
+  (`YES`/`NO`), `atn_chained_child_id`, `atn_state` and `atn_parameters[]`.
+  Parameters are positional: `[0]=MBR_IDENT`, `[1]=TIMESTART`, `[2]=TIMEEND`,
+  `[3]=LOCATION`, `[4]=COST`, `[5]=unit` (`€` / `Minuut` / `#`). Label lookups
+  (`prr_label`) also work for the named ones.
+- **Mutation history** (`get_mutation_history` → `data.mutations[]`): each row
+  has `mtn_parameters[]` with `[0]=type` (`"Afboeking"`=debit, else credit),
+  `[1]=amount`, `[2]=unit`, `[3]=date`, `[4]=plate`.
+- **Page 1 indexes** mirror the web app: history `0..10`, transactions `1..10`.
 
 ### Payloads that are JSON-in-a-form-field
 
@@ -152,15 +165,30 @@ OkHttp, Material 3. Build config in `app/module.toml` (this project uses a
   an in-memory cookie jar (session cookie never persisted to disk), plus a
   `noRedirectClient` variant for the top-up redirect capture. All parsing lives
   here; it returns plain data classes (`Product`, `Member`, `ProductDetails`,
-  `Balance`, `TopupForward`).
+  `Balance`, `TopupForward`, `ParkingAction`, `Mutation`, and their pages).
 - **`Prefs`** — `EncryptedSharedPreferences` (AES256, Keystore-backed) holding
   credentials, selected/default product, saved plates, last balance, and the
   active parking session. Store name `mijn3park_secure`.
+- **`ThemePrefs`** — plain (unencrypted) preferences for the light/dark/system
+  theme, read by `App` before the Keystore is unlocked.
+- **`App`** — `Application`; applies the saved night mode via
+  `AppCompatDelegate.setDefaultNightMode`.
+- **`AppViewModel`** — activity-scoped shared state: product list, selected
+  product, details/members/balance, server sync of the parking session. Exposes
+  `state`, `sessionExpired` and one-off `messages` flows.
 - **`LoginActivity`** — credentials → login → preselect first product.
-- **`MainActivity`** — product dropdown (+ default-product star), Dutch plate
-  input, plate chips (fixed plate ★, account favorites, local plates, `+` to
-  add), status card with MD3 tonal states, start/stop, top-up menu, favorite
-  add/edit/delete dialogs.
+- **`MainActivity`** — hosts a `BottomNavigationView` (Park / History /
+  Transactions / Settings) and switches fragments (show/hide, state preserved).
+  Owns logout and the expired-session reaction.
+- **`ParkFragment`** — Dutch plate input, plate chips (fixed plate ★, account
+  favorites, local plates, `+`), read-only current-product row, status card with
+  MD3 tonal states, start/stop, top-up, end-time picker, favorite dialogs, and
+  pull-to-refresh (`SwipeRefreshLayout`).
+- **`HistoryFragment` / `TransactionsFragment`** — paged lists
+  (`get_action_history` / `get_mutation_history`) that auto-load the next page
+  on scroll for the currently selected product.
+- **`SettingsFragment`** — account email, product selector (+ default star),
+  theme selector, logout.
 - **`ParkingService`** — foreground service with the ongoing notification;
   owns the midnight-renewal alarm and keeps `Prefs`/UI in sync via
   `onStateChanged`.
@@ -174,8 +202,8 @@ OkHttp, Material 3. Build config in `app/module.toml` (this project uses a
   state, not literal colors. The Dutch plate (black-on-yellow) is a deliberate
   skeuomorphic exception.
 - Minimum SDK is 23 (required by `EncryptedSharedPreferences`). `deleteSharedPreferences`
-  is API 24+, so guard it. targetSdk 30 (exempt from exact-alarm and
-  foregroundServiceType requirements — revisit both if the target is raised).
+  is API 24+, so guard it. targetSdk 35 (`SCHEDULE_EXACT_ALARM` and
+  `foregroundServiceType="specialUse"` are declared accordingly).
 
 ### Security posture (already applied)
 
