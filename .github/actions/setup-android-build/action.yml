@@ -32,7 +32,22 @@ runs:
           echo "::error::Could not extract compileSdk/buildToolsVersion from app/build.gradle.kts" >&2
           exit 1
         fi
-        sdkmanager "platforms;android-$compile_sdk" "build-tools;$build_tools"
+
+        # From API 37 on, platforms are minor-versioned (platforms;android-37.2)
+        # instead of plain platforms;android-37. Prefer the exact package and
+        # fall back to the newest stable android-<compileSdk>.<minor>.
+        platform="platforms;android-$compile_sdk"
+        if ! sdkmanager --list 2>/dev/null | grep -E "^[[:space:]]*$platform([[:space:]]|$)" >/dev/null; then
+          platform="$(sdkmanager --list 2>/dev/null \
+            | sed -nE "s/^[[:space:]]*(platforms;android-${compile_sdk}(\\.[0-9]+)?).*/\\1/p" \
+            | grep -vE -- "-[a-z]" \
+            | sort -Vu | tail -n1)"
+          if [[ -z "$platform" ]]; then
+            echo "::error::No installable SDK platform found for compileSdk $compile_sdk" >&2
+            exit 1
+          fi
+        fi
+        sdkmanager "$platform" "build-tools;$build_tools"
 
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
