@@ -1,4 +1,4 @@
-# AGENTS.md — mijn.3park
+# AGENTS.md: mijn.3park
 
 Guidance for coding agents working in this repository. `mijn.3park` is an
 unofficial Android client for **mijn.2park.nl**, a Dutch parking service. It
@@ -31,10 +31,10 @@ Every response has a status envelope:
 
 - `major` is `OK` or `FAIL`. Always check it.
 - `minor` is the meaningful sub-code. Known values:
-  - `AUTHENTICATED` — successful login
-  - `SUCCESS` — successful data call
-  - `SESSION_TIMEOUT` — session expired, re-login
-  - `INTERNAL_ERROR` — server-side failure (see gotcha below)
+  - `AUTHENTICATED`: successful login
+  - `SUCCESS`: successful data call
+  - `SESSION_TIMEOUT`: session expired, re-login
+  - `INTERNAL_ERROR`: server-side failure (see gotcha below)
 
 ### Endpoints in use
 
@@ -113,7 +113,7 @@ Date/time format is `dd-MM-yyyy HH:mm:ss` (Dutch day-first), **not** ISO.
 
 - **Product IDs contain a literal `$`** (e.g. `EVNTKTK_411L$1013522`). In shell
   testing this must be single-quoted or `%24`-encoded, or the shell eats it and
-  the server returns `INTERNAL_ERROR`. In app code it's just a string — no
+  the server returns `INTERNAL_ERROR`. In app code it's just a string; no
   escaping needed in a form body. This `$` was the single biggest source of
   confusing `INTERNAL_ERROR`s during reverse engineering.
 
@@ -123,7 +123,7 @@ Date/time format is `dd-MM-yyyy HH:mm:ss` (Dutch day-first), **not** ISO.
   scheduling an exact alarm just after midnight that re-issues a fresh
   `start_action` for the new day, until the user stops.
 
-- **Start/stop are not trusted blindly — verify.** After `start_action` /
+- **Start/stop are not trusted blindly; verify.** After `start_action` /
   `stop_action`, re-fetch product details and confirm the member's active state
   (retry a few times with a short delay). The HA integration does this; the app
   mirrors it in `TwoParkApi.start`.
@@ -132,7 +132,7 @@ Date/time format is `dd-MM-yyyy HH:mm:ss` (Dutch day-first), **not** ISO.
   `FLPN` are permits with a plate bound to the permit. The fixed plate is found
   under `pdt_identifications[].idn_members[]` where `mbr_type=="FLPN"`. It is
   considered "covered" whenever no `LPN` member of that identification is active
-  (starting a different plate temporarily overrides/suspends the permit — that's
+  (starting a different plate temporarily overrides/suspends the permit, which is
   what `force_single_active_action_product` is for). In the UI, permits have
   **no balance, no top-up, and no start/stop button**; they are effectively
   read-only and always-on.
@@ -160,36 +160,36 @@ Package: `dev.watermarkhu.mijn3park` (not `com.example.*`). Kotlin, coroutines,
 OkHttp, Material 3. Build config in `app/module.toml` (this project uses a
 `module.toml` scaffold, **not** a standard Gradle `build.gradle`).
 
-- **`TwoParkApi`** — single shared instance (`TwoParkApi.instance`) so the
+- **`TwoParkApi`**: single shared instance (`TwoParkApi.instance`) so the
   activity and the service share one cookie/session. Owns an OkHttp client with
   an in-memory cookie jar (session cookie never persisted to disk), plus a
   `noRedirectClient` variant for the top-up redirect capture. All parsing lives
   here; it returns plain data classes (`Product`, `Member`, `ProductDetails`,
   `Balance`, `TopupForward`, `ParkingAction`, `Mutation`, and their pages).
-- **`Prefs`** — `EncryptedSharedPreferences` (AES256, Keystore-backed) holding
+- **`Prefs`**: `EncryptedSharedPreferences` (AES256, Keystore-backed) holding
   credentials, selected/default product, saved plates, last balance, and the
   active parking session. Store name `mijn3park_secure`.
-- **`ThemePrefs`** — plain (unencrypted) preferences for the light/dark/system
+- **`ThemePrefs`**: plain (unencrypted) preferences for the light/dark/system
   theme, read by `App` before the Keystore is unlocked.
-- **`App`** — `Application`; applies the saved night mode via
+- **`App`**: `Application`; applies the saved night mode via
   `AppCompatDelegate.setDefaultNightMode`.
-- **`AppViewModel`** — activity-scoped shared state: product list, selected
+- **`AppViewModel`**: activity-scoped shared state: product list, selected
   product, details/members/balance, server sync of the parking session. Exposes
   `state`, `sessionExpired` and one-off `messages` flows.
-- **`LoginActivity`** — credentials → login → preselect first product.
-- **`MainActivity`** — hosts a `BottomNavigationView` (Park / History /
+- **`LoginActivity`**: credentials → login → preselect first product.
+- **`MainActivity`**: hosts a `BottomNavigationView` (Park / History /
   Transactions / Settings) and switches fragments (show/hide, state preserved).
   Owns logout and the expired-session reaction.
-- **`ParkFragment`** — Dutch plate input, plate chips (fixed plate ★, account
+- **`ParkFragment`**: Dutch plate input, plate chips (fixed plate ★, account
   favorites, local plates, `+`), read-only current-product row, status card with
   MD3 tonal states, start/stop, top-up, end-time picker, favorite dialogs, and
   pull-to-refresh (`SwipeRefreshLayout`).
-- **`HistoryFragment` / `TransactionsFragment`** — paged lists
+- **`HistoryFragment` / `TransactionsFragment`**: paged lists
   (`get_action_history` / `get_mutation_history`) that auto-load the next page
   on scroll for the currently selected product.
-- **`SettingsFragment`** — account email, product selector (+ default star),
+- **`SettingsFragment`**: account email, product selector (+ default star),
   theme selector, logout.
-- **`ParkingService`** — foreground service with the ongoing notification;
+- **`ParkingService`**: foreground service with the ongoing notification;
   owns the midnight-renewal alarm and keeps `Prefs`/UI in sync via
   `onStateChanged`.
 
@@ -197,15 +197,15 @@ OkHttp, Material 3. Build config in `app/module.toml` (this project uses a
 
 `TwoParkApi` classifies every failure so the UI can react precisely:
 
-- `ApiUnavailableException` — network/IO failure, timeout, HTTP 5xx/429.
-- `ApiIncompatibleException` — HTTP 4xx (other than 401/403), malformed/empty
+- `ApiUnavailableException`: network/IO failure, timeout, HTTP 5xx/429.
+- `ApiIncompatibleException`: HTTP 4xx (other than 401/403), malformed/empty
   JSON, unexpected `major`/`minor`, or a required payload key missing.
-- `AuthFailedException` — credentials rejected (never retried; log out).
-- `SessionExpiredException` — session cookie lost; `withAuthRetry` re-logs in
+- `AuthFailedException`: credentials rejected (never retried; log out).
+- `SessionExpiredException`: session cookie lost; `withAuthRetry` re-logs in
   once and retries (only this class is retried).
 
 `AppViewModel` runs a **health check** (`start()` / `retry()` / `refresh()`) that
-probes the core read-only endpoints (categories, product details, balance —
+probes the core read-only endpoints (categories, product details, balance,
 never the mutating ones, and not the paged history endpoints so it stays fast)
 and exposes a `HealthState` (`CHECKING`/`OK`/`UNAVAILABLE`/`UNRELIABLE`). The host
 activity shows a full-screen failure view (`view_status.xml`) over Park/History/
