@@ -10,14 +10,31 @@ android {
     defaultConfig {
         applicationId = "com.watermarkhu.mijn3park"
         minSdk = 23
-        // Mirrors app/module.toml (targetSdk = 35).
         targetSdk = 35
+        // Placeholders for local/debug builds. release.yml patches these with
+        // the real versionName (semantic version) and versionCode (GitHub
+        // release count) before building the published bundle.
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.0.0-dev"
+    }
+
+    // Release signing. Values come from the environment (CI release job /
+    // local shell), never committed. See .github/workflows/release.yml.
+    signingConfigs {
+        create("release") {
+            System.getenv("MIJN3PARK_KEYSTORE_FILE")?.let { storeFile = file(it) }
+            storePassword = System.getenv("MIJN3PARK_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("MIJN3PARK_KEY_ALIAS")
+            keyPassword = System.getenv("MIJN3PARK_KEY_PASSWORD")
+        }
     }
 
     buildTypes {
         release {
+            // Sign only when the keystore is provided, so unsigned release
+            // builds (and all debug builds) still work without the secrets.
+            signingConfig = System.getenv("MIJN3PARK_KEYSTORE_FILE")
+                ?.let { signingConfigs.getByName("release") }
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(

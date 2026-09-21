@@ -23,8 +23,7 @@ persistent notification while parking is active.
 - Kotlin, coroutines, OkHttp, Material 3 (dynamic color).
 - Talks directly to the undocumented mijn.2park.nl JSON endpoints (no backend
   of our own).
-- Build config lives in `app/module.toml` (a `module.toml` scaffold, not a
-  standard Gradle `build.gradle`).
+- Built with Gradle (Kotlin DSL); see `app/build.gradle.kts`.
 - Minimum SDK 23.
 
 See [`AGENTS.md`](AGENTS.md) for detailed notes on the 2Park API, its quirks,

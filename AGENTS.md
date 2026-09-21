@@ -157,8 +157,7 @@ Date/time format is `dd-MM-yyyy HH:mm:ss` (Dutch day-first), **not** ISO.
 ## App architecture
 
 Package: `com.watermarkhu.mijn3park` (not `com.example.*`). Kotlin, coroutines,
-OkHttp, Material 3. Build config in `app/module.toml` (this project uses a
-`module.toml` scaffold, **not** a standard Gradle `build.gradle`).
+OkHttp, Material 3. Built with Gradle (Kotlin DSL); see `app/build.gradle.kts`.
 
 - **`TwoParkApi`**: single shared instance (`TwoParkApi.instance`) so the
   activity and the service share one cookie/session. Owns an OkHttp client with
