@@ -31,7 +31,7 @@
             <!-- Required by Google Play to justify the specialUse type. -->
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="@string/fgs_special_use_subtype" />
+                android:value="Keeps an active parking session running, with a persistent notification, and renews it after midnight until the user stops it." />
         </service>
     </application>
 </manifest>
