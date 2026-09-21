@@ -20,6 +20,12 @@ persistent notification while parking is active.
 - **History & transactions**: browse past parking actions and balance changes.
 - **Settings**: pick a default product and a light/dark/system theme.
 
+## Screenshots
+
+| Park | History | Transactions | Settings |
+|---|---|---|---|
+| <img src="store/screen_park.png" width="200" alt="Park"> | <img src="store/screen_history.png" width="200" alt="History"> | <img src="store/screen_transactions.png" width="200" alt="Transactions"> | <img src="store/screen_settings.png" width="200" alt="Settings"> |
+
 ## Tech
 
 - Kotlin, coroutines, OkHttp, Material 3 (dynamic color).

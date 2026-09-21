@@ -25,6 +25,12 @@ melding zolang het parkeren actief is.
   saldomutaties.
 - **Instellingen**: kies een standaardproduct en een licht/donker/systeemthema.
 
+## Schermafbeeldingen
+
+| Parkeren | Geschiedenis | Transacties | Instellingen |
+|---|---|---|---|
+| <img src="store/screen_park.png" width="200" alt="Parkeren"> | <img src="store/screen_history.png" width="200" alt="Geschiedenis"> | <img src="store/screen_transactions.png" width="200" alt="Transacties"> | <img src="store/screen_settings.png" width="200" alt="Instellingen"> |
+
 ## Techniek
 
 - Kotlin, coroutines, OkHttp, Material 3 (dynamische kleuren).
