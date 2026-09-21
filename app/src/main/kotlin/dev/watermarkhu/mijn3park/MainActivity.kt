@@ -52,6 +52,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progress: LinearProgressIndicator
 
     private lateinit var balanceText: TextView
+    private lateinit var topupChip: View
     private lateinit var defaultProductStar: MaterialButton
     private lateinit var statusCard: MaterialCardView
     private lateinit var statusIcon: ImageView
@@ -102,6 +103,8 @@ class MainActivity : AppCompatActivity() {
         toggleButton = findViewById(R.id.toggleButton)
         progress = findViewById(R.id.progress)
         balanceText = findViewById(R.id.balanceText)
+        topupChip = findViewById(R.id.topupChip)
+        topupChip.setOnClickListener { showTopupDialog() }
         statusCard = findViewById(R.id.statusCard)
         statusIcon = findViewById(R.id.statusIcon)
         endTimeRow = findViewById(R.id.endTimeRow)
@@ -123,6 +126,7 @@ class MainActivity : AppCompatActivity() {
         if (prefs.lastBalance.isNotBlank()) {
             balanceText.text = getString(R.string.balance_label, prefs.lastBalance)
             balanceText.visibility = View.VISIBLE
+            topupChip.visibility = View.VISIBLE
         }
 
         defaultProductStar.setOnClickListener {
@@ -184,16 +188,7 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        menu.findItem(R.id.action_topup)?.isVisible = !isPermitProduct
-        return super.onPrepareOptionsMenu(menu)
-    }
-
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        R.id.action_topup -> {
-            showTopupDialog()
-            true
-        }
         R.id.action_refresh -> {
             loadProducts()
             refreshRemoteData()
@@ -341,8 +336,10 @@ class MainActivity : AppCompatActivity() {
                     prefs.lastBalance = balance.formatted
                     balanceText.text = getString(R.string.balance_label, balance.formatted)
                     balanceText.visibility = View.VISIBLE
+                    topupChip.visibility = View.VISIBLE
                 } else {
                     balanceText.visibility = View.GONE
+                    topupChip.visibility = View.GONE
                 }
 
                 // Sync local state with the server (e.g. parking started/stopped elsewhere).
