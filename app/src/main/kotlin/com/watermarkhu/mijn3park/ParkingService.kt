@@ -1,5 +1,6 @@
-package dev.watermarkhu.mijn3park
+package com.watermarkhu.mijn3park
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -8,9 +9,11 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,10 +36,10 @@ import java.util.Locale
 class ParkingService : Service() {
 
     companion object {
-        const val ACTION_START = "dev.watermarkhu.mijn3park.action.START"
-        const val ACTION_STOP = "dev.watermarkhu.mijn3park.action.STOP"
-        const val ACTION_RENEW = "dev.watermarkhu.mijn3park.action.RENEW"
-        const val ACTION_AUTO_STOP = "dev.watermarkhu.mijn3park.action.AUTO_STOP"
+        const val ACTION_START = "com.watermarkhu.mijn3park.action.START"
+        const val ACTION_STOP = "com.watermarkhu.mijn3park.action.STOP"
+        const val ACTION_RENEW = "com.watermarkhu.mijn3park.action.RENEW"
+        const val ACTION_AUTO_STOP = "com.watermarkhu.mijn3park.action.AUTO_STOP"
         const val EXTRA_PLATE = "plate"
         const val EXTRA_END_AT = "end_at"
 
@@ -91,12 +94,12 @@ class ParkingService : Service() {
             ACTION_START -> {
                 val plate = intent.getStringExtra(EXTRA_PLATE).orEmpty()
                 val endAt = intent.getLongExtra(EXTRA_END_AT, 0L)
-                startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.notification_starting)))
+                goForeground(buildNotification(getString(R.string.notification_starting)))
                 startParking(plate, endAt)
             }
             ACTION_AUTO_STOP -> {
                 if ((prefs.isParking) && (prefs.activeEndAt > 0L)) {
-                    startForeground(NOTIFICATION_ID, activeNotification())
+                    goForeground(activeNotification())
                     autoStopParking()
                 } else {
                     stopSelfCompletely()
@@ -104,20 +107,20 @@ class ParkingService : Service() {
             }
             ACTION_RENEW -> {
                 if (prefs.isParking) {
-                    startForeground(NOTIFICATION_ID, activeNotification())
+                    goForeground(activeNotification())
                     renewParking()
                 } else {
                     stopSelfCompletely()
                 }
             }
             ACTION_STOP -> {
-                startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.notification_stopping)))
+                goForeground(buildNotification(getString(R.string.notification_stopping)))
                 stopParking()
             }
             else -> {
                 // Restarted by the system: resume state if we were parking.
                 if (prefs.isParking) {
-                    startForeground(NOTIFICATION_ID, activeNotification())
+                    goForeground(activeNotification())
                     scheduleMidnightRenewal()
                     scheduleEndAlarm(prefs.activeEndAt)
                 } else {
@@ -469,6 +472,18 @@ class ParkingService : Service() {
     private fun notify(notification: Notification) {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(NOTIFICATION_ID, notification)
+    }
+
+    /**
+     * Promote this service to the foreground with the manifest-declared
+     * [ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE] type. Android 14+
+     * requires the type both in the manifest and when starting the service.
+     */
+    @SuppressLint("InlinedApi")
+    private fun goForeground(notification: Notification) {
+        ServiceCompat.startForeground(
+            this, NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+        )
     }
 
     private fun notifyEnded(notification: Notification) {

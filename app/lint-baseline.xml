@@ -1,0 +1,485 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 9.4.1" type="baseline" client="gradle" dependencies="true" name="AGP (9.4.1)" variant="all" version="9.4.1">
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;progress&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="            android:id=&quot;@+id/progress&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="21"
+            column="13"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;navHost&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout-land (present in layout)"
+        errorLine1="                android:id=&quot;@+id/navHost&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="35"
+            column="17"
+            message="Occurrence in layout"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;statusContainer&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout-land (present in layout)"
+        errorLine1="                android:id=&quot;@+id/statusContainer&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="40"
+            column="17"
+            message="Occurrence in layout"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;bottomNav&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout-land (present in layout)"
+        errorLine1="        android:id=&quot;@+id/bottomNav&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="49"
+            column="9"
+            message="Occurrence in layout"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;productDropdown&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                            android:id=&quot;@+id/productDropdown&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="64"
+            column="29"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;defaultProductStar&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                        android:id=&quot;@+id/defaultProductStar&quot;"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="71"
+            column="25"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;plateInput&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                        android:id=&quot;@+id/plateInput&quot;"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="91"
+            column="25"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;plateChipsScroll&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                    android:id=&quot;@+id/plateChipsScroll&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="125"
+            column="21"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;plateChips&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                        android:id=&quot;@+id/plateChips&quot;"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="131"
+            column="25"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;statusCard&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                android:id=&quot;@+id/statusCard&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="140"
+            column="17"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;statusIcon&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                            android:id=&quot;@+id/statusIcon&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="160"
+            column="29"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;statusText&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                                android:id=&quot;@+id/statusText&quot;"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="175"
+            column="33"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;balanceText&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                                android:id=&quot;@+id/balanceText&quot;"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="182"
+            column="33"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;endTimeRow&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                        android:id=&quot;@+id/endTimeRow&quot;"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="193"
+            column="25"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;endTimeLabel&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                            android:id=&quot;@+id/endTimeLabel&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="201"
+            column="29"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;endTimeClear&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                            android:id=&quot;@+id/endTimeClear&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="212"
+            column="29"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;endCountdown&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                        android:id=&quot;@+id/endCountdown&quot;"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="221"
+            column="25"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;toggleButton&quot; in layout &quot;activity_main&quot; is missing from the following layout configurations: layout (present in layout-land)"
+        errorLine1="                        android:id=&quot;@+id/toggleButton&quot;"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout-land/activity_main.xml"
+            line="229"
+            column="25"
+            message="Occurrence in layout-land"/>
+    </issue>
+
+    <issue
+        id="InconsistentLayout"
+        message="The id &quot;topupChip&quot; in layout &quot;fragment_park&quot; is missing from the following layout configurations: layout-land (present in layout)"
+        errorLine1="                                        android:id=&quot;@+id/topupChip&quot;"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_park.xml"
+            line="183"
+            column="41"
+            message="Occurrence in layout"/>
+    </issue>
+
+    <issue
+        id="MergeRootFrame"
+        message="This `&lt;FrameLayout>` can be replaced with a `&lt;merge>` tag"
+        errorLine1="&lt;FrameLayout"
+        errorLine2="^">
+        <location
+            file="src/main/res/layout/activity_login.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="DisableBaselineAlignment"
+        message="Set `android:baselineAligned=&quot;false&quot;` on this element for better performance"
+        errorLine1="    &lt;LinearLayout"
+        errorLine2="     ~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/item_transaction.xml"
+            line="9"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.primary` appears to be unused"
+        errorLine1="    &lt;color name=&quot;primary&quot;>#FF6750A4&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="3"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.on_primary` appears to be unused"
+        errorLine1="    &lt;color name=&quot;on_primary&quot;>#FFFFFFFF&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="4"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.saved_plates` appears to be unused"
+        errorLine1="    &lt;string name=&quot;saved_plates&quot;>Saved plates&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="23"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.menu_refresh` appears to be unused"
+        errorLine1="    &lt;string name=&quot;menu_refresh&quot;>Refresh&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="45"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.notification_stop_failed` appears to be unused"
+        errorLine1="    &lt;string name=&quot;notification_stop_failed&quot;>Stop failed: %1$s&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="98"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="TooDeepLayout"
+        message="`fragment_park.xml` has more than 10 levels, bad for performance"
+        errorLine1="                                    &lt;TextView"
+        errorLine2="                                     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_park.xml"
+            line="173"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putString(&quot;email&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="60"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putString(&quot;password&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="64"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putString(&quot;product_id&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="71"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putString(&quot;product_name&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="75"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putString(&quot;product_location&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="79"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putString(&quot;product_category_id&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="83"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putString(&quot;default_product_id&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="88"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="            prefs.edit().putString(&quot;saved_plates&quot;, array.toString()).apply()"
+        errorLine2="            ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="104"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putString(&quot;last_balance&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="115"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putString(&quot;active_plate&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="121"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putLong(&quot;active_since&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="125"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putLong(&quot;active_end_at&quot;, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="133"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit().remove(&quot;active_plate&quot;).remove(&quot;active_since&quot;).remove(&quot;active_end_at&quot;).apply()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="139"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit().clear().apply()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/Prefs.kt"
+            line="143"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(value) = prefs.edit().putString(KEY_THEME, value).apply()"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/watermarkhu/mijn3park/ThemePrefs.kt"
+            line="18"
+            column="22"/>
+    </issue>
+
+</issues>

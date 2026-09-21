@@ -1,4 +1,4 @@
-package dev.watermarkhu.mijn3park
+package com.watermarkhu.mijn3park
 
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -309,7 +309,7 @@ class ParkFragment : Fragment(R.layout.fragment_park) {
                 setChipIconResource(R.drawable.ic_add)
                 isChipIconVisible = true
                 chipIconTint = ColorStateList.valueOf(
-                    MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary)
+                    MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary),
                 )
                 contentDescription = getString(R.string.add_plate)
                 setOnClickListener { showFavoriteDialog(null) }
@@ -407,7 +407,7 @@ class ParkFragment : Fragment(R.layout.fragment_park) {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 if (existing != null) {
-                    if (existing.plate == plate && existing.nickname.orEmpty() == name) {
+                    if ((existing.plate == plate) && (existing.nickname.orEmpty() == name)) {
                         return@launch // nothing changed
                     }
                     // The API has no update: replace by remove + add.
@@ -455,7 +455,7 @@ class ParkFragment : Fragment(R.layout.fragment_park) {
             plateInput.isEnabled = false
         } else {
             val details = appState.details
-            if (details?.fixedPlate != null && details.fixedPlateActive) {
+            if ((details?.fixedPlate != null) && details.fixedPlateActive) {
                 statusText.text = getString(R.string.status_fixed_plate, details.fixedPlate)
             } else {
                 statusText.setText(R.string.status_idle)
@@ -595,7 +595,7 @@ class ParkFragment : Fragment(R.layout.fragment_park) {
         val endDay = Calendar.getInstance().apply { timeInMillis = endAtMillis }
         val today = Calendar.getInstance()
         val sameDay = endDay[Calendar.YEAR] == today[Calendar.YEAR] &&
-            endDay.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
+            endDay[Calendar.DAY_OF_YEAR] == today[Calendar.DAY_OF_YEAR]                    
         val pattern = if (sameDay) "HH:mm" else "EEE d MMM, HH:mm"
         return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(endAtMillis))
     }

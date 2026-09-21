@@ -1,5 +1,7 @@
 # mijn.3park
 
+<img src="store/icon.svg" alt="mijn.3park app icon" width="96" align="right"/>
+
 An unofficial Android client for **[mijn.2park.nl](https://mijn.2park.nl)**, a
 Dutch parking service. It lets you log in with your existing 2Park account,
 pick a product, and turn parking on or off for a license plate, with a
@@ -18,13 +20,18 @@ persistent notification while parking is active.
 - **History & transactions**: browse past parking actions and balance changes.
 - **Settings**: pick a default product and a light/dark/system theme.
 
+## Screenshots
+
+| Park | History | Transactions | Settings |
+|---|---|---|---|
+| <img src="store/screen_park.png" width="200" alt="Park"> | <img src="store/screen_history.png" width="200" alt="History"> | <img src="store/screen_transactions.png" width="200" alt="Transactions"> | <img src="store/screen_settings.png" width="200" alt="Settings"> |
+
 ## Tech
 
 - Kotlin, coroutines, OkHttp, Material 3 (dynamic color).
 - Talks directly to the undocumented mijn.2park.nl JSON endpoints (no backend
   of our own).
-- Build config lives in `app/module.toml` (a `module.toml` scaffold, not a
-  standard Gradle `build.gradle`).
+- Built with Gradle (Kotlin DSL); see `app/build.gradle.kts`.
 - Minimum SDK 23.
 
 See [`AGENTS.md`](AGENTS.md) for detailed notes on the 2Park API, its quirks,

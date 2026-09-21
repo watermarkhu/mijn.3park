@@ -1,0 +1,145 @@
+name: Release
+
+on:
+  pull_request:
+    types:
+      - closed
+      - opened
+      - reopened
+      - synchronize
+    branches: [main]
+
+# Releases must never be interrupted mid-publish; queue instead of cancel.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Semantic version release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write # Required for adding the labels to the PR
+      issues: write # Required for adding labels to the repository
+    outputs:
+      release: ${{ steps.get-version.outputs.release }}
+      tag: ${{ steps.get-version.outputs.tag }}
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - name: Get semantic version
+        uses: RonaldPhilipsen/semVersie@41233349edfb40f4e6da4251fea7684026182dc9 # v2.3.4
+        id: get-version
+        with:
+          add-pr-label: true
+          label-prefix: false
+
+  build:
+    name: Build signed release
+    needs: release
+    if: needs.release.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    permissions:
+      contents: write # create/upload the GitHub release asset
+      id-token: write # required for actions/attest-build-provenance
+      attestations: write # required for actions/attest-build-provenance
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Android build
+        uses: ./.github/actions/setup-android-build
+
+      - name: Patch version into build config
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: ${{ needs.release.outputs.version }}
+          RELEASECODE_START: 2
+          RELEASE_LIMIT: 1000
+        run: |
+          # versionCode must be unique and strictly increasing across every
+          # Play track; derive it from the count of GitHub releases so far.
+          RELEASE_COUNT=$(gh release list --limit $RELEASE_LIMIT --json tagName --jq 'length')
+          VERSION_CODE=$((RELEASE_COUNT + $RELEASECODE_START))
+          echo "Patching versionCode=$VERSION_CODE versionName=$VERSION_NAME"
+          sed -i "s/^\( *\)versionCode = .*/\1versionCode = $VERSION_CODE/" app/build.gradle.kts
+          sed -i "s/^\( *\)versionName = .*/\1versionName = \"$VERSION_NAME\"/" app/build.gradle.kts
+
+      - name: Decrypt upload keystore
+        env:
+          KEYSTORE_PASSPHRASE: ${{ secrets.MIJN3PARK_KEYSTORE_GPG_PASSPHRASE }}
+        run: |
+          gpg --quiet --batch --yes --decrypt \
+            --passphrase "$KEYSTORE_PASSPHRASE" \
+            --output "$RUNNER_TEMP/upload.jks" app/upload.jks.gpg
+
+      # AAB for Play, APK so users can sideload directly. Both are signed by
+      # the release signingConfig in app/build.gradle.kts.
+      - name: Build signed release bundle and APK
+        env:
+          MIJN3PARK_KEYSTORE_FILE: ${{ runner.temp }}/upload.jks
+          MIJN3PARK_KEYSTORE_PASSWORD: ${{ secrets.MIJN3PARK_KEYSTORE_PASSWORD }}
+          MIJN3PARK_KEY_ALIAS: ${{ vars.MIJN3PARK_KEY_ALIAS }}
+          MIJN3PARK_KEY_PASSWORD: ${{ secrets.MIJN3PARK_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:bundleRelease :app:assembleRelease --stacktrace
+
+      - name: Name release artifacts
+        id: pkg
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/bundle/release/app-release.aab "dist/mijn.3park-$VERSION.aab"
+          cp app/build/outputs/apk/release/app-release.apk "dist/mijn.3park-$VERSION.apk"
+          {
+            echo "aab=dist/mijn.3park-$VERSION.aab"
+            echo "apk=dist/mijn.3park-$VERSION.apk"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Attest release artifact provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            ${{ steps.pkg.outputs.aab }}
+            ${{ steps.pkg.outputs.apk }}
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mijn.3park-${{ needs.release.outputs.version }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach artifacts to GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release.outputs.tag }}
+          VERSION: ${{ needs.release.outputs.version }}
+          AAB: ${{ steps.pkg.outputs.aab }}
+          APK: ${{ steps.pkg.outputs.apk }}
+        run: |
+          gh release create "$TAG" "$AAB" "$APK" --title "$VERSION" --generate-notes \
+            || gh release upload "$TAG" "$AAB" "$APK" --clobber
+
+      - uses: 'google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093' # v3.0.0
+        id: auth
+        with:
+          service_account: ${{ vars.GOOGLE_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ vars.GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: Publish to Google Play
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
+          packageName: com.watermarkhu.mijn3park
+          releaseFiles: ${{ steps.pkg.outputs.aab }}
+          tracks: internal
+          status: completed
+          releaseName: ${{ needs.release.outputs.version }}

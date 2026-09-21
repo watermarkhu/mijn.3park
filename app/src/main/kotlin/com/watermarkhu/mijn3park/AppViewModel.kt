@@ -1,4 +1,4 @@
-package dev.watermarkhu.mijn3park
+package com.watermarkhu.mijn3park
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -94,7 +94,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (!appliedDefaultProduct) {
                     appliedDefaultProduct = true
                     products.firstOrNull { it.id == prefs.defaultProductId }
-                        ?.takeIf { it.id != prefs.productId && !prefs.isParking }
+                        ?.takeIf { (it.id != prefs.productId) && !prefs.isParking }
                         ?.let { applyProduct(it) }
                 }
                 // Keep the stored selection valid.
@@ -136,7 +136,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _health.value = HealthState.UNRELIABLE
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Anything unexpected is treated as an unreliable API.
                 _health.value = HealthState.UNRELIABLE
             } finally {

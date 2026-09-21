@@ -1,4 +1,4 @@
-package dev.watermarkhu.mijn3park
+package com.watermarkhu.mijn3park
 
 import android.os.Bundle
 import android.view.View
@@ -13,11 +13,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.color.MaterialColors
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
-class TransactionsFragment : Fragment(R.layout.fragment_transactions) {
+class HistoryFragment : Fragment(R.layout.fragment_history) {
 
     private val vm: AppViewModel by activityViewModels()
     private val prefs get() = vm.prefs
@@ -26,9 +27,9 @@ class TransactionsFragment : Fragment(R.layout.fragment_transactions) {
     private lateinit var recycler: RecyclerView
     private lateinit var empty: TextView
     private lateinit var progress: LinearProgressIndicator
-    private val adapter = TransactionAdapter()
+    private val adapter = HistoryAdapter()
 
-    private var nextStart = 1
+    private var nextStart = 0
     private var nextStop = PAGE
     private var loading = false
     private var endReached = false
@@ -38,7 +39,7 @@ class TransactionsFragment : Fragment(R.layout.fragment_transactions) {
         recycler = view.findViewById(R.id.list)
         empty = view.findViewById(R.id.empty)
         progress = view.findViewById(R.id.progress)
-        empty.setText(R.string.transactions_empty)
+        empty.setText(R.string.history_empty)
 
         recycler.layoutManager = LinearLayoutManager(requireContext())
         recycler.adapter = adapter
@@ -64,7 +65,7 @@ class TransactionsFragment : Fragment(R.layout.fragment_transactions) {
 
     private fun reset() {
         adapter.clear()
-        nextStart = 1
+        nextStart = 0
         nextStop = PAGE
         loading = false
         endReached = false
@@ -78,10 +79,10 @@ class TransactionsFragment : Fragment(R.layout.fragment_transactions) {
         progress.isVisible = adapter.itemCount == 0
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val page = api.getMutationHistory(productId, nextStart, nextStop)
+                val page = api.getActionHistory(productId, nextStart, nextStop)
                 if (productId != loadedProductId) return@launch
-                adapter.addAll(page.mutations)
-                endReached = page.mutations.isEmpty() || page.stopIndex >= page.maxIndex
+                adapter.addAll(page.actions)
+                endReached = page.actions.isEmpty() || page.stopIndex >= page.maxIndex
                 nextStart = page.stopIndex + 1
                 nextStop = page.stopIndex + PAGE
                 renderEmpty()
@@ -98,6 +99,8 @@ class TransactionsFragment : Fragment(R.layout.fragment_transactions) {
             } finally {
                 loading = false
                 progress.isVisible = false
+                // Content may not fill the screen yet: keep loading until it
+                // does. Defer until after layout so canScrollVertically is real.
                 recycler.post { maybeFillScreen() }
             }
         }
@@ -116,9 +119,9 @@ class TransactionsFragment : Fragment(R.layout.fragment_transactions) {
         empty.isVisible = adapter.itemCount == 0 && endReached
     }
 
-    private class TransactionAdapter : RecyclerView.Adapter<TransactionAdapter.ViewHolder>() {
+    private class HistoryAdapter : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
 
-        private val items = mutableListOf<Mutation>()
+        private val items = mutableListOf<ParkingAction>()
 
         fun clear() {
             val size = items.size
@@ -126,7 +129,7 @@ class TransactionsFragment : Fragment(R.layout.fragment_transactions) {
             notifyItemRangeRemoved(0, size)
         }
 
-        fun addAll(newItems: List<Mutation>) {
+        fun addAll(newItems: List<ParkingAction>) {
             if (newItems.isEmpty()) return
             val start = items.size
             items.addAll(newItems)
@@ -136,7 +139,7 @@ class TransactionsFragment : Fragment(R.layout.fragment_transactions) {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder =
             ViewHolder(
                 android.view.LayoutInflater.from(parent.context)
-                    .inflate(R.layout.item_transaction, parent, false)
+                    .inflate(R.layout.item_history, parent, false)
             )
 
         override fun getItemCount(): Int = items.size
@@ -144,26 +147,27 @@ class TransactionsFragment : Fragment(R.layout.fragment_transactions) {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) = holder.bind(items[position])
 
         class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            private val type: TextView = view.findViewById(R.id.type)
             private val plate: TextView = view.findViewById(R.id.plate)
-            private val amount: TextView = view.findViewById(R.id.amount)
-            private val date: TextView = view.findViewById(R.id.date)
+            private val period: TextView = view.findViewById(R.id.period)
+            private val location: TextView = view.findViewById(R.id.location)
+            private val cost: TextView = view.findViewById(R.id.cost)
 
-            fun bind(mutation: Mutation) {
+            fun bind(action: ParkingAction) {
                 val context = itemView.context
-                type.text = mutation.type
-                val color = MaterialColors.getColor(
-                    itemView,
-                    if (mutation.isDebit) androidx.appcompat.R.attr.colorError
-                    else androidx.appcompat.R.attr.colorPrimary,
+                plate.text = action.plate
+                period.text = context.getString(
+                    R.string.history_period,
+                    prettyTime(action.timeStart),
+                    prettyTime(action.timeEnd),
                 )
-                type.setTextColor(color)
-                amount.setTextColor(color)
-                amount.text = formatAmount(mutation.amount, mutation.unit)
-                date.text = prettyTime(mutation.date)
-                plate.isVisible = mutation.plate.isNotBlank()
-                if (mutation.plate.isNotBlank()) {
-                    plate.text = context.getString(R.string.transaction_plate, mutation.plate)
+                location.isVisible = !action.location.isNullOrBlank()
+                if (!action.location.isNullOrBlank()) {
+                    location.text = context.getString(R.string.history_location, action.location)
+                }
+                val formattedCost = formatAmount(action.cost, action.costUnit)
+                cost.isVisible = formattedCost != null
+                if (formattedCost != null) {
+                    cost.text = context.getString(R.string.history_cost, formattedCost)
                 }
             }
         }
