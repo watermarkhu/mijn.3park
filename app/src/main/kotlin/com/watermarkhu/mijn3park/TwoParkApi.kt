@@ -153,6 +153,11 @@ class TwoParkApi {
     companion object {
         const val BASE_URL = "https://mijn.2park.nl"
         const val LOCALE = "nl_NL"
+
+        // Hardcoded demo/review account. Logging in with these serves mock data
+        // and makes no network calls. Not a real 2Park account.
+        const val MOCK_EMAIL = "demo@mijn3park.example"
+        const val MOCK_PASSWORD = "demo1234"
         private const val TIME_FORMAT = "dd-MM-yyyy HH:mm:ss"
         private const val DATE_FORMAT = "dd-MM-yyyy"
 
@@ -198,6 +203,13 @@ class TwoParkApi {
 
     @Volatile
     private var loggedIn = false
+
+    /** True while the hardcoded demo account is signed in (no network calls). */
+    @Volatile
+    var mock = false
+        private set
+
+    private var mockBackend = MockBackend()
 
     var email: String = ""
     var password: String = ""
@@ -262,6 +274,16 @@ class TwoParkApi {
     }
 
     suspend fun login(email: String, password: String) {
+        // Hardcoded demo account: serve mock data, never touch the network.
+        if (email.trim().equals(MOCK_EMAIL, ignoreCase = true) && password == MOCK_PASSWORD) {
+            this.email = email
+            this.password = password
+            mock = true
+            loggedIn = true
+            mockBackend = MockBackend()
+            return
+        }
+        mock = false
         this.email = email
         this.password = password
         loginMutex.withLock { doLogin() }
@@ -313,6 +335,8 @@ class TwoParkApi {
     fun logout() {
         synchronized(cookieStore) { cookieStore.clear() }
         loggedIn = false
+        mock = false
+        mockBackend = MockBackend()
         email = ""
         password = ""
     }
@@ -334,6 +358,7 @@ class TwoParkApi {
     }
 
     suspend fun getProducts(): List<Product> = withAuthRetry {
+        if (mock) return@withAuthRetry mockBackend.products()
         val payload = postForm("get_categories.json", mapOf("locale" to LOCALE))
         assertOk(payload, expectedMinor = "SUCCESS")
 
@@ -398,6 +423,7 @@ class TwoParkApi {
     }
 
     suspend fun getDetails(productId: String): ProductDetails {
+        if (mock) return mockBackend.details(productId)
         val payload = getProductDetails(productId)
         val data = payload.optJSONObject("data")
             ?: throw ApiIncompatibleException("get_category_product_details: missing data")
@@ -448,6 +474,7 @@ class TwoParkApi {
     suspend fun getMembers(productId: String): List<Member> = getDetails(productId).members
 
     suspend fun getBalance(productId: String): Balance = withAuthRetry {
+        if (mock) return@withAuthRetry mockBackend.balance(productId)
         val payload = postForm(
             "get_balance.json",
             mapOf("product_id" to productId, "locale" to LOCALE),
@@ -475,6 +502,7 @@ class TwoParkApi {
         startIndex: Int,
         stopIndex: Int,
     ): ActionHistoryPage = withAuthRetry {
+        if (mock) return@withAuthRetry mockBackend.actionHistory(productId, startIndex, stopIndex)
         val payload = postForm(
             "get_action_history.json",
             mapOf(
@@ -524,6 +552,7 @@ class TwoParkApi {
         startIndex: Int,
         stopIndex: Int,
     ): MutationHistoryPage = withAuthRetry {
+        if (mock) return@withAuthRetry mockBackend.mutationHistory(productId, startIndex, stopIndex)
         val payload = postForm(
             "get_mutation_history.json",
             mapOf(
@@ -578,6 +607,7 @@ class TwoParkApi {
      * Returns the action id of the newly started (verified) action.
      */
     suspend fun start(productId: String, location: String?, plate: String): String {
+        if (mock) return mockBackend.start(productId, plate)
         val plateNorm = normalizePlate(plate)
         val action = JSONObject().put(
             "action",
@@ -613,6 +643,10 @@ class TwoParkApi {
     }
 
     suspend fun stopAction(productId: String, actionId: String) {
+        if (mock) {
+            mockBackend.stopAction(productId, actionId)
+            return
+        }
         withAuthRetry {
             val payload = postForm(
                 "stop_action.json",
@@ -628,6 +662,7 @@ class TwoParkApi {
 
     /** Available top-up amounts (PAY_AMOUNT values like "10.00"). */
     suspend fun getTopupOptions(productId: String): List<String> = withAuthRetry {
+        if (mock) return@withAuthRetry mockBackend.topupOptions()
         val payload = postForm(
             "get_upgrade_units.json",
             mapOf(
@@ -657,6 +692,7 @@ class TwoParkApi {
         productId: String,
         payAmount: String,
     ): TopupForward = withAuthRetry {
+        if (mock) return@withAuthRetry mockBackend.startTopup(payAmount)
         val payload = postForm(
             "start_transaction.json",
             mapOf(
@@ -694,6 +730,7 @@ class TwoParkApi {
      * redirect target. For GET handoffs we simply build the query URL.
      */
     suspend fun resolveTopupBrowserUrl(forward: TopupForward): String = withContext(Dispatchers.IO) {
+        if (mock) return@withContext forward.url
         val base = forward.url.toHttpUrlOrNull()
             ?: throw ApiIncompatibleException("Invalid payment URL")
 
@@ -758,6 +795,10 @@ class TwoParkApi {
         plate: String,
         nickname: String?,
     ) {
+        if (mock) {
+            mockBackend.handleFavorite(productId, action, plate, nickname)
+            return
+        }
         val data = JSONObject().put(
             "favorite",
             JSONObject()

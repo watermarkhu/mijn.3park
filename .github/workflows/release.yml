@@ -37,7 +37,7 @@ jobs:
   build:
     name: Build signed release
     needs: release
-    # if: needs.release.outputs.release == 'true'
+    if: needs.release.outputs.release == 'true'
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -92,11 +92,11 @@ jobs:
           VERSION: ${{ needs.release.outputs.version }}
         run: |
           mkdir -p dist
-          cp app/build/outputs/bundle/release/app-release.aab "dist/mijn.2park-$VERSION.aab"
-          cp app/build/outputs/apk/release/app-release.apk "dist/mijn.2park-$VERSION.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/mijn.3park-$VERSION.aab"
+          cp app/build/outputs/apk/release/app-release.apk "dist/mijn.3park-$VERSION.apk"
           {
-            echo "aab=dist/mijn.2park-$VERSION.aab"
-            echo "apk=dist/mijn.2park-$VERSION.apk"
+            echo "aab=dist/mijn.3park-$VERSION.aab"
+            echo "apk=dist/mijn.3park-$VERSION.apk"
           } >> "$GITHUB_OUTPUT"
 
       - name: Attest release artifact provenance
@@ -109,7 +109,7 @@ jobs:
       - name: Upload release artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: mijn.2park-${{ needs.release.outputs.version }}
+          name: mijn.3park-${{ needs.release.outputs.version }}
           path: dist/
           if-no-files-found: error
           retention-days: 14
