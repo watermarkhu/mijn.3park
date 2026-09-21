@@ -565,7 +565,7 @@ class MainActivity : AppCompatActivity() {
                 setChipIconResource(R.drawable.ic_add)
                 isChipIconVisible = true
                 chipIconTint = ColorStateList.valueOf(
-                    MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary)
+                    MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary)
                 )
                 contentDescription = getString(R.string.add_plate)
                 setOnClickListener { showFavoriteDialog(null) }
@@ -767,8 +767,8 @@ class MainActivity : AppCompatActivity() {
         toggleButton.backgroundTintList = ColorStateList.valueOf(
             MaterialColors.getColor(
                 toggleButton,
-                if (parking) com.google.android.material.R.attr.colorError
-                else com.google.android.material.R.attr.colorPrimary,
+                if (parking) androidx.appcompat.R.attr.colorError
+                else androidx.appcompat.R.attr.colorPrimary,
             )
         )
         toggleButton.setTextColor(
