@@ -4,7 +4,8 @@
 Compares the source of truth (app/module.toml) against app/build.gradle.kts:
   - android namespace / applicationId
   - compileSdk, minSdk, targetSdk, versionCode, versionName
-  - languageLevel JAVA_8  <->  JavaVersion.VERSION_1_8 + jvmTarget "1.8"
+  - languageLevel JAVA_8  <->  JavaVersion.VERSION_1_8 (jvmTarget defaults to
+    targetCompatibility under AGP built-in Kotlin, so it isn't set explicitly)
   - every module.toml implementation entry present in Gradle with the same
     version (entries without a version, e.g. "kotlin-stdlib", only require
     the artifact to be present)
@@ -81,11 +82,11 @@ def main() -> int:
         )
 
     # --- language level ---
+    # Built-in Kotlin (AGP 9+) derives the Kotlin jvmTarget from
+    # compileOptions.targetCompatibility, so only the Java level is checked.
     if module.get("module", {}).get("languageLevel") == "JAVA_8":
         if "JavaVersion.VERSION_1_8" not in gradle:
             errors.append('languageLevel JAVA_8 requires JavaVersion.VERSION_1_8 in compileOptions')
-        if not re.search(r'jvmTarget\s*(=\s*"1\.8"|\.set\([^)]*JVM_1_8)', gradle):
-            errors.append('languageLevel JAVA_8 requires jvmTarget 1.8 (kotlinOptions or compilerOptions)')
 
     # --- dependencies ---
     gradle_deps = set(re.findall(r'implementation\("([^"]+)"\)', gradle))

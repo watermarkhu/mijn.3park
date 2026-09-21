@@ -1,9 +1,12 @@
-name: Build
+name: Qualify
 
 on:
-  push:
   pull_request:
-  workflow_dispatch:
+    branches: [main]
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: read

@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  pull_request:
+    types:
+      - closed
+      - opened
+      - reopened
+      - synchronize
+    branches: [main]
+
+jobs:
+  release:
+    name: Semantic version release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write # Required for adding the labels to the PR
+      issues: write # Required for adding labels to the repository
+    outputs:
+      release: ${{ steps.get-version.outputs.release }}
+      tag: ${{ steps.get-version.outputs.tag }}
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - name: Get semantic version
+        uses: RonaldPhilipsen/semVersie@v2.3.4
+        id: get-version
+        with:
+          add-pr-label: true
+          label-prefix: false
