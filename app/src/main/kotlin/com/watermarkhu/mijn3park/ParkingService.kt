@@ -1,5 +1,6 @@
 package com.watermarkhu.mijn3park
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -478,6 +479,7 @@ class ParkingService : Service() {
      * [ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE] type. Android 14+
      * requires the type both in the manifest and when starting the service.
      */
+    @SuppressLint("InlinedApi")
     private fun goForeground(notification: Notification) {
         ServiceCompat.startForeground(
             this, NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,

@@ -93,4 +93,5 @@
     <string name="notification_stop_failed">Stoppen mislukt: %1$s</string>
     <string name="notification_logged_out">Uitgelogd, log opnieuw in</string>
     <string name="notification_action_stop">Stop</string>
+    <string name="fgs_justification">Houdt een actieve parkeersessie draaiende, met een blijvende melding, en verlengt deze na middernacht totdat de gebruiker stopt.</string>
 </resources>
