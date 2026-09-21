@@ -28,7 +28,7 @@ jobs:
       version: ${{ steps.get-version.outputs.version }}
     steps:
       - name: Get semantic version
-        uses: RonaldPhilipsen/semVersie@v2.3.4
+        uses: RonaldPhilipsen/semVersie@41233349edfb40f4e6da4251fea7684026182dc9 # v2.3.4
         id: get-version
         with:
           add-pr-label: true
@@ -55,11 +55,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION_NAME: ${{ needs.release.outputs.version }}
+          RELEASECODE_START: 2
+          RELEASE_LIMIT: 1000
         run: |
           # versionCode must be unique and strictly increasing across every
           # Play track; derive it from the count of GitHub releases so far.
-          RELEASE_COUNT=$(gh release list --limit 1000 --json tagName --jq 'length')
-          VERSION_CODE=$((RELEASE_COUNT + 1))
+          RELEASE_COUNT=$(gh release list --limit $RELEASE_LIMIT --json tagName --jq 'length')
+          VERSION_CODE=$((RELEASE_COUNT + $RELEASECODE_START))
           echo "Patching versionCode=$VERSION_CODE versionName=$VERSION_NAME"
           sed -i "s/^\( *\)versionCode = .*/\1versionCode = $VERSION_CODE/" app/build.gradle.kts
           sed -i "s/^\( *\)versionName = .*/\1versionName = \"$VERSION_NAME\"/" app/build.gradle.kts
@@ -110,7 +112,7 @@ jobs:
           name: mijn.2park-${{ needs.release.outputs.version }}
           path: dist/
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
 
       - name: Attach artifacts to GitHub release
         env:
@@ -123,10 +125,16 @@ jobs:
           gh release create "$TAG" "$AAB" "$APK" --title "$VERSION" --generate-notes \
             || gh release upload "$TAG" "$AAB" "$APK" --clobber
 
-      - name: Publish to Google Play
-        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
+      - uses: 'google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093' # v3.0.0
+        id: auth
         with:
-          serviceAccountJsonPlainText: ${{ secrets.MIJN3PARK_PLAY_SERVICE_ACCOUNT_JSON }}
+          service_account: ${{ vars.GOOGLE_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ vars.GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: Publish to Google Play
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ steps.auth.outputs.credentials_file_path }}
           packageName: com.watermarkhu.mijn3park
           releaseFiles: ${{ steps.pkg.outputs.aab }}
           tracks: internal
