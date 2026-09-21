@@ -94,15 +94,15 @@ string:
 ```jsonc
 // start_action
 {"action":{"atn_parameters":[
-  {"prr_label":"MBR_IDENT","prr_value":"33PBGF"},
+  {"prr_label":"MBR_IDENT","prr_value":"GX472N"},
   {"prr_label":"TIMESTART","prr_value":"dd-MM-yyyy HH:mm:ss"},
   {"prr_label":"TIMEEND","prr_value":"dd-MM-yyyy 23:59:59"},
   {"prr_label":"LOCATION","prr_value":"EVN_411L"}
 ]}}
 
 // handle_favorite (edit = remove then add; there is no update action)
-{"favorite":{"fav_parameters":[{"prr_label":"NICKNAME","prr_value":"Suzie"}],
-  "action":"add","mbr_ident":"33PBGF"}}
+{"favorite":{"fav_parameters":[{"prr_label":"NICKNAME","prr_value":"Kantoor"}],
+  "action":"add","mbr_ident":"GX472N"}}
 ```
 
 Date/time format is `dd-MM-yyyy HH:mm:ss` (Dutch day-first), **not** ISO.

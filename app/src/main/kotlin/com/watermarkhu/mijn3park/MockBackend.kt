@@ -1,5 +1,7 @@
 package com.watermarkhu.mijn3park
 
+import kotlin.random.Random
+
 /**
  * In-memory stand-in for the 2Park API used by the hardcoded demo account
  * (see [TwoParkApi.MOCK_EMAIL]). It lets the app be explored, screenshotted and
@@ -21,11 +23,16 @@ class MockBackend {
 
     private val prepaidId = "DEMO_PREPAID_100"
     private val permitId = "DEMO_PERMIT_200"
-    private val permitFixedPlate = "12ABC3"
+
+    // Synthetic plates generated per demo session, so no real license plate is
+    // ever hardcoded or shown.
+    private val plateA = randomPlate()
+    private val plateB = randomPlate()
+    private val permitFixedPlate = randomPlate()
 
     private val favorites = mutableListOf(
-        Fav("33PBGF", "Foocar"),
-        Fav("6ZKH23", "Barcamper"),
+        Fav(plateA, "Foocar"),
+        Fav(plateB, "Barcamper"),
     )
     private val active = mutableListOf<Active>()
     private var balanceAmount = 42.50
@@ -110,6 +117,14 @@ class MockBackend {
         if (action == "add") favorites.add(Fav(p, nickname?.takeIf { it.isNotBlank() }))
     }
 
+    /** A plausible but random Dutch-style plate (consonants only, no vowels). */
+    private fun randomPlate(): String {
+        val letters = "BDFGHJKLMNPRSTVWXZ"
+        fun l() = letters[Random.nextInt(letters.length)]
+        fun d() = '0' + Random.nextInt(10)
+        return "${l()}${l()}${d()}${d()}${d()}${l()}"
+    }
+
     fun actionHistory(productId: String, startIndex: Int, stopIndex: Int): ActionHistoryPage {
         val all = if (productId == permitId) emptyList() else demoActions
         return ActionHistoryPage(
@@ -132,19 +147,19 @@ class MockBackend {
 
     private val demoActions = listOf(
         ParkingAction(
-            id = "demo-h1", plate = "33PBGF",
+            id = "demo-h1", plate = plateA,
             timeStart = "20-09-2026 08:15:00", timeEnd = "20-09-2026 17:30:00",
             location = "Demo Centrum", cost = "3.20", costUnit = "€",
             state = "STOPPED", chained = false,
         ),
         ParkingAction(
-            id = "demo-h2", plate = "6ZKH23",
+            id = "demo-h2", plate = plateB,
             timeStart = "18-09-2026 19:05:00", timeEnd = "18-09-2026 23:59:59",
             location = "Demo Centrum", cost = "1.80", costUnit = "€",
             state = "STOPPED", chained = false,
         ),
         ParkingAction(
-            id = "demo-h3", plate = "33PBGF",
+            id = "demo-h3", plate = plateA,
             timeStart = "15-09-2026 09:40:00", timeEnd = "15-09-2026 12:10:00",
             location = "Demo Centrum", cost = "1.10", costUnit = "€",
             state = "STOPPED", chained = false,
@@ -152,9 +167,9 @@ class MockBackend {
     )
 
     private val demoMutations = listOf(
-        Mutation(type = "Afboeking", amount = "3.20", unit = "€", date = "20-09-2026", plate = "33PBGF"),
+        Mutation(type = "Afboeking", amount = "3.20", unit = "€", date = "20-09-2026", plate = plateA),
         Mutation(type = "Bijschrijving", amount = "20.00", unit = "€", date = "18-09-2026", plate = ""),
-        Mutation(type = "Afboeking", amount = "1.80", unit = "€", date = "18-09-2026", plate = "6ZKH23"),
-        Mutation(type = "Afboeking", amount = "1.10", unit = "€", date = "15-09-2026", plate = "33PBGF"),
+        Mutation(type = "Afboeking", amount = "1.80", unit = "€", date = "18-09-2026", plate = plateB),
+        Mutation(type = "Afboeking", amount = "1.10", unit = "€", date = "15-09-2026", plate = plateA),
     )
 }

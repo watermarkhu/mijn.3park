@@ -10,7 +10,7 @@ class ModelsTest {
     @Test
     fun normalizePlate_uppercasesAndStripsSeparators() {
         assertEquals("AB12CD", normalizePlate(" ab-12 cd "))
-        assertEquals("33PBGF", normalizePlate("33-PB-GF"))
+        assertEquals("GX472N", normalizePlate("gx-47 2n"))
     }
 
     @Test
