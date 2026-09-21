@@ -37,7 +37,7 @@ jobs:
   build:
     name: Build signed release
     needs: release
-    if: needs.release.outputs.release == 'true' && github.event.pull_request.merged
+    if: needs.release.outputs.release == 'true' # && github.event.pull_request.merged
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -64,17 +64,20 @@ jobs:
           sed -i "s/^\( *\)versionCode = .*/\1versionCode = $VERSION_CODE/" app/build.gradle.kts
           sed -i "s/^\( *\)versionName = .*/\1versionName = \"$VERSION_NAME\"/" app/build.gradle.kts
 
-      - name: Decode upload keystore
+      - name: Decrypt upload keystore
         env:
-          KEYSTORE_BASE64: ${{ secrets.MIJN3PARK_KEYSTORE_BASE64 }}
-        run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          KEYSTORE_PASSPHRASE: ${{ secrets.MIJN3PARK_KEYSTORE_GPG_PASSPHRASE }}
+        run: |
+          gpg --quiet --batch --yes --decrypt \
+            --passphrase "$KEYSTORE_PASSPHRASE" \
+            --output "$RUNNER_TEMP/upload.jks" app/upload.jks.gpg
 
       - name: Build signed release bundle
         env:
           MIJN3PARK_KEYSTORE_FILE: ${{ runner.temp }}/upload.jks
           MIJN3PARK_KEYSTORE_PASSWORD: ${{ secrets.MIJN3PARK_KEYSTORE_PASSWORD }}
-          MIJN3PARK_KEY_ALIAS: ${{ secrets.MIJN3PARK_KEY_ALIAS }}
-          MIJN3PARK_KEY_PASSWORD: ${{ secrets.MIJN3PARK_KEY_PASSWORD }}
+          MIJN3PARK_KEY_ALIAS: ${{ vars.MIJN3PARK_KEY_ALIAS }}
+          MIJN3PARK_KEY_PASSWORD: ${{ secrets.MIJN3PARK_KEYSTORE_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew :app:bundleRelease --stacktrace
