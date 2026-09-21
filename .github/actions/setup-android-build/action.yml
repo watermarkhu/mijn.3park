@@ -23,7 +23,16 @@ runs:
 
     - name: Install Android platform and build-tools
       shell: bash
-      run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      run: |
+        # Extract compileSdk and buildToolsVersion from app/build.gradle.kts so
+        # this action never drifts from the SDK levels the app actually builds.
+        compile_sdk="$(sed -nE 's/^[[:space:]]*compileSdk[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' app/build.gradle.kts | head -n1)"
+        build_tools="$(sed -nE 's/^[[:space:]]*buildToolsVersion[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' app/build.gradle.kts | head -n1)"
+        if [[ -z "$compile_sdk" || -z "$build_tools" ]]; then
+          echo "::error::Could not extract compileSdk/buildToolsVersion from app/build.gradle.kts" >&2
+          exit 1
+        fi
+        sdkmanager "platforms;android-$compile_sdk" "build-tools;$build_tools"
 
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
