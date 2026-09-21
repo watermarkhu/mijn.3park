@@ -1,5 +1,7 @@
 # mijn.3park
 
+<img src="store/icon.svg" alt="mijn.3park app icon" width="96" align="right"/>
+
 An unofficial Android client for **[mijn.2park.nl](https://mijn.2park.nl)**, a
 Dutch parking service. It lets you log in with your existing 2Park account,
 pick a product, and turn parking on or off for a license plate, with a
