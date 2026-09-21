@@ -3,7 +3,7 @@ version = 2
 [module]
 type = "android-app"
 name = "app"
-languageLevel = "JAVA_8"
+languageLevel = "JAVA_11"
 output = "build/classes"
 
 [sourceSets.debug]
@@ -34,7 +34,7 @@ res = ["src/release/res"]
 resources = ["src/release/resources"]
 
 [dependencies]
-implementation = ["kotlin-stdlib", "com.google.android.material:material:1.14.0", "androidx.appcompat:appcompat:1.8.0", "androidx.lifecycle:lifecycle-runtime-ktx:2.11.0", "androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0", "androidx.fragment:fragment-ktx:1.8.9", "androidx.recyclerview:recyclerview:1.4.0", "androidx.swiperefreshlayout:swiperefreshlayout:1.2.0", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0", "com.squareup.okhttp3:okhttp:5.5.0", "androidx.security:security-crypto:1.1.0"]
+implementation = ["kotlin-stdlib", "com.google.android.material:material:1.14.0", "androidx.appcompat:appcompat:1.8.0", "androidx.lifecycle:lifecycle-runtime-ktx:2.11.0", "androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0", "androidx.fragment:fragment-ktx:1.9.0", "androidx.recyclerview:recyclerview:1.4.0", "androidx.swiperefreshlayout:swiperefreshlayout:1.2.0", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0", "com.squareup.okhttp3:okhttp:5.5.0", "androidx.security:security-crypto:1.1.0"]
 testImplementation = ["junit:junit:4.13.2"]
 
 [android]

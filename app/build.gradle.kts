@@ -29,9 +29,10 @@ android {
 
     // With built-in Kotlin (AGP 9+), the Kotlin jvmTarget defaults to
     // targetCompatibility, and src/main/kotlin is a default source directory.
+    // 11 is required by current AndroidX artifacts (e.g. fragment-ktx 1.9.0).
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     lint {
@@ -41,6 +42,9 @@ android {
         warningsAsErrors = true
         checkDependencies = true
         baseline = file("lint-baseline.xml")
+        // targetSdk is intentionally conservative (see AGENTS.md), so the
+        // "target the latest Android version" reminder must not fail builds.
+        disable += "OldTargetApi"
     }
 }
 

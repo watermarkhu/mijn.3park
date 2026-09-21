@@ -84,9 +84,18 @@ def main() -> int:
     # --- language level ---
     # Built-in Kotlin (AGP 9+) derives the Kotlin jvmTarget from
     # compileOptions.targetCompatibility, so only the Java level is checked.
-    if module.get("module", {}).get("languageLevel") == "JAVA_8":
-        if "JavaVersion.VERSION_1_8" not in gradle:
-            errors.append('languageLevel JAVA_8 requires JavaVersion.VERSION_1_8 in compileOptions')
+    java_levels = {
+        "JAVA_8": "VERSION_1_8",
+        "JAVA_11": "VERSION_11",
+        "JAVA_17": "VERSION_17",
+    }
+    language_level = module.get("module", {}).get("languageLevel")
+    if language_level in java_levels:
+        expected_java = f"JavaVersion.{java_levels[language_level]}"
+        if expected_java not in gradle:
+            errors.append(f'languageLevel {language_level} requires {expected_java} in compileOptions')
+    elif language_level:
+        errors.append(f"unsupported languageLevel {language_level!r} in module.toml")
 
     # --- dependencies ---
     module_deps = module.get("dependencies", {})
