@@ -21,6 +21,14 @@ class MockBackend {
         val end: String,
     )
 
+    private data class Scheduled(
+        val plate: String,
+        val actionId: String,
+        val nickname: String?,
+        val start: String,
+        val end: String,
+    )
+
     private val prepaidId = "DEMO_PREPAID_100"
     private val permitId = "DEMO_PERMIT_200"
 
@@ -35,6 +43,7 @@ class MockBackend {
         Fav(plateB, "Barcamper"),
     )
     private val active = mutableListOf<Active>()
+    private val scheduled = mutableListOf<Scheduled>()
     private var balanceAmount = 42.50
     private var actionCounter = 1000
 
@@ -66,6 +75,9 @@ class MockBackend {
                 fixedPlateActive = true,
             )
         }
+        // The server auto-starts scheduled sessions once their time arrives.
+        mergeDueScheduled()
+
         val members = buildList {
             favorites.forEach { fav ->
                 val act = active.firstOrNull { it.plate == fav.plate }
@@ -85,7 +97,63 @@ class MockBackend {
                 add(Member(a.plate, null, true, a.actionId, a.start, a.end))
             }
         }
-        return ProductDetails(members = members, fixedPlate = null, fixedPlateActive = false)
+        val planned = scheduled.map {
+            PlannedAction(
+                id = it.actionId,
+                plate = it.plate,
+                nickname = it.nickname,
+                timeStart = it.start,
+                timeEnd = it.end,
+                location = null,
+            )
+        }
+        return ProductDetails(
+            members = members,
+            fixedPlate = null,
+            fixedPlateActive = false,
+            plannedActions = planned,
+        )
+    }
+
+    /** Move scheduled sessions whose start has passed into the active list. */
+    private fun mergeDueScheduled() {
+        val now = System.currentTimeMillis()
+        scheduled.filter { Planning.parseTimestamp(it.start) <= now }.forEach {
+            scheduled.remove(it)
+            if (active.none { a -> a.plate == it.plate }) {
+                active.add(Active(it.plate, it.actionId, it.start, it.end))
+            }
+        }
+    }
+
+    fun planned(productId: String): List<PlannedAction> {
+        if (productId == permitId) return emptyList()
+        return scheduled.map {
+            PlannedAction(
+                id = it.actionId,
+                plate = it.plate,
+                nickname = it.nickname,
+                timeStart = it.start,
+                timeEnd = it.end,
+                location = null,
+            )
+        }
+    }
+
+    fun plan(productId: String, plate: String, startAt: Long, endAt: Long): List<String> {
+        val p = normalizePlate(plate)
+        val nickname = favorites.firstOrNull { it.plate == p }?.nickname
+        return Planning.splitByDay(startAt, endAt).map { (start, end) ->
+            val id = "demo-plan-${actionCounter++}"
+            scheduled.add(
+                Scheduled(p, id, nickname, Planning.formatTimestamp(start), Planning.formatTimestamp(end))
+            )
+            id
+        }
+    }
+
+    fun cancelPlanned(productId: String, actionId: String) {
+        scheduled.removeAll { it.actionId == actionId }
     }
 
     fun balance(@Suppress("UNUSED_PARAMETER") productId: String): Balance =

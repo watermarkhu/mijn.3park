@@ -60,6 +60,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var appliedDefaultProduct = false
     private var checksStarted = false
 
+    /** Plates observed as having SCHEDULED (planned) actions in this process. */
+    private val observedPlannedPlates = mutableSetOf<String>()
+
     /** The selected product, derived from the stored product id. */
     private fun selectedProduct(products: List<Product> = _state.value.products): Product? =
         products.firstOrNull { it.id == prefs.productId }
@@ -112,7 +115,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update {
                     it.copy(details = details, members = details.members, selectedProduct = product)
                 }
-
                 // Permits are not prepaid: no balance.
                 if (details.fixedPlate == null) {
                     val balance = api.getBalance(product.id)
@@ -201,11 +203,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Align the local parking session with what the server reports. */
     private fun syncParkingSession(details: ProductDetails) {
+        // Remember which plates are currently planned, so a later server-side
+        // auto-start can be reported as a planned session starting.
+        observedPlannedPlates += details.plannedActions.map { it.plate }
         val activeMember = details.members.firstOrNull { it.active && it.actionId != null }
         if (activeMember != null && !prefs.isParking) {
+            val startedFromPlan = observedPlannedPlates.remove(activeMember.plate)
             prefs.activePlate = activeMember.plate
             prefs.activeSince = System.currentTimeMillis()
-            ParkingService.start(getApplication(), activeMember.plate)
+            ParkingService.start(
+                getApplication(),
+                activeMember.plate,
+                notifyPlannedStart = startedFromPlan,
+            )
         } else if (activeMember == null && prefs.isParking) {
             prefs.clearActiveParking()
             ParkingService.stop(getApplication())
@@ -236,6 +246,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         ParkingService.stop(getApplication())
         api.logout()
         prefs.clearAll()
+        observedPlannedPlates.clear()
         appliedDefaultProduct = false
         checksStarted = false
         _health.value = HealthState.CHECKING

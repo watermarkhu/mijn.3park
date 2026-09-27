@@ -82,6 +82,22 @@ data class ProductDetails(
      * plate override (LPN action) is active. Mirrors the web app logic.
      */
     val fixedPlateActive: Boolean,
+    /** Future planned (SCHEDULED) actions, each a single-day leg. */
+    val plannedActions: List<PlannedAction> = emptyList(),
+)
+
+/**
+ * A future planned ("Gepland") parking action. The server only accepts plans
+ * within a single calendar day, so longer sessions are stored as consecutive
+ * legs and merged for display (see [Planning]).
+ */
+data class PlannedAction(
+    val id: String,
+    val plate: String,
+    val nickname: String?,
+    val timeStart: String,
+    val timeEnd: String,
+    val location: String?,
 )
 
 data class TopupForward(
@@ -429,21 +445,45 @@ class TwoParkApi {
             ?: throw ApiIncompatibleException("get_category_product_details: missing data")
 
         val members = mutableListOf<Member>()
+        val plannedActions = mutableListOf<PlannedAction>()
         val rawMembers = data.optJSONArray("pdt_members")
             ?: throw ApiIncompatibleException("get_category_product_details: missing pdt_members")
         for (i in 0 until rawMembers.length()) {
             val member = rawMembers.optJSONObject(i) ?: continue
+            val plate = normalizePlate(member.optString("mbr_identifier"))
+            val nickname = extractParam(member.optJSONArray("mbr_parameters"), "NICKNAME")
             val action = extractActiveAction(member)
             members.add(
                 Member(
-                    plate = normalizePlate(member.optString("mbr_identifier")),
-                    nickname = extractParam(member.optJSONArray("mbr_parameters"), "NICKNAME"),
+                    plate = plate,
+                    nickname = nickname,
                     active = member.optString("mbr_active") == "YES",
                     actionId = action?.optString("atn_id")?.takeIf { it.isNotBlank() },
-                    timeStart = extractParam(action?.optJSONArray("atn_parameters"), "TIMESTART"),
-                    timeEnd = extractParam(action?.optJSONArray("atn_parameters"), "TIMEEND"),
+                    timeStart = action?.let { extractParam(it.optJSONArray("atn_parameters"), "TIMESTART") },
+                    timeEnd = action?.let { extractParam(it.optJSONArray("atn_parameters"), "TIMEEND") },
                 )
             )
+            // Future sessions: SCHEDULED actions (which the server auto-starts)
+            // belong to the member. Mirrors how the web splits active vs planned.
+            val actions = member.optJSONArray("mbr_actions") ?: continue
+            for (j in 0 until actions.length()) {
+                val scheduled = actions.optJSONObject(j) ?: continue
+                if (scheduled.optString("atn_state") != "SCHEDULED") continue
+                if (scheduled.optString("atn_chained") == "YES") continue
+                val id = scheduled.optString("atn_id")
+                if (id.isBlank()) continue
+                val params = scheduled.optJSONArray("atn_parameters")
+                plannedActions.add(
+                    PlannedAction(
+                        id = id,
+                        plate = plate,
+                        nickname = nickname,
+                        timeStart = extractParam(params, "TIMESTART") ?: paramAt(params, 1).orEmpty(),
+                        timeEnd = extractParam(params, "TIMEEND") ?: paramAt(params, 2).orEmpty(),
+                        location = extractParam(params, "LOCATION") ?: paramAt(params, 3),
+                    )
+                )
+            }
         }
 
         // FLPN products list the permit's fixed plate under pdt_identifications:
@@ -468,6 +508,7 @@ class TwoParkApi {
             members = members,
             fixedPlate = fixedPlate?.takeIf { it.isNotBlank() },
             fixedPlateActive = fixedPlate != null && !overrideActive,
+            plannedActions = plannedActions,
         )
     }
 
@@ -609,19 +650,83 @@ class TwoParkApi {
     suspend fun start(productId: String, location: String?, plate: String): String {
         if (mock) return mockBackend.start(productId, plate)
         val plateNorm = normalizePlate(plate)
-        val action = JSONObject().put(
-            "action",
-            JSONObject().put(
-                "atn_parameters",
-                JSONArray().apply {
-                    put(JSONObject().put("prr_label", "MBR_IDENT").put("prr_value", plateNorm))
-                    put(JSONObject().put("prr_label", "TIMESTART").put("prr_value", nowTimestamp()))
-                    put(JSONObject().put("prr_label", "TIMEEND").put("prr_value", endOfTodayTimestamp()))
-                    put(JSONObject().put("prr_label", "LOCATION").put("prr_value", location ?: ""))
-                }
-            )
-        )
+        val now = System.currentTimeMillis()
+        postStartAction(productId, location, plateNorm, now, Planning.endOfDay(now))
 
+        // Verify the action is actually active and fetch its id.
+        repeat(3) {
+            findActiveMember(productId, plateNorm)?.actionId?.let { return it }
+            delay(1.seconds)
+        }
+        throw TwoParkException("Start not confirmed for $plateNorm")
+    }
+
+    /**
+     * Plan a future session [startAt]..[endAt] for [plate].
+     *
+     * The web UI only accepts plans within a single calendar day, so
+     * cross-midnight sessions are split into consecutive per-day legs (each
+     * ending 23:59:59, the next starting 00:00:00, recursively for multi-day
+     * plans). Returns the ids of the created legs.
+     */
+    suspend fun planAction(
+        productId: String,
+        location: String?,
+        plate: String,
+        startAt: Long,
+        endAt: Long,
+    ): List<String> {
+        val plateNorm = normalizePlate(plate)
+        if (mock) return mockBackend.plan(productId, plateNorm, startAt, endAt)
+        val ids = mutableListOf<String>()
+        for ((legStart, legEnd) in Planning.splitByDay(startAt, endAt)) {
+            ids.add(planLeg(productId, location, plateNorm, legStart, legEnd))
+        }
+        return ids
+    }
+
+    private suspend fun planLeg(
+        productId: String,
+        location: String?,
+        plate: String,
+        startAt: Long,
+        endAt: Long,
+    ): String {
+        postStartAction(productId, location, plate, startAt, endAt)
+        // Verify the plan landed as a SCHEDULED action and fetch its id.
+        val startFormatted = Planning.formatTimestamp(startAt)
+        repeat(3) {
+            val scheduled = getPlanned(productId).firstOrNull {
+                (it.plate == plate) && (it.timeStart == startFormatted)
+            }
+            if (scheduled != null) return scheduled.id
+            delay(1.seconds)
+        }
+        throw TwoParkException("Plan not confirmed for $plate")
+    }
+
+    /** Future planned (SCHEDULED) actions for the product, each a single-day leg. */
+    suspend fun getPlanned(productId: String): List<PlannedAction> =
+        if (mock) mockBackend.planned(productId) else getDetails(productId).plannedActions
+
+    /** Remove a planned (scheduled) action. Same endpoint the website uses. */
+    suspend fun cancelPlanned(productId: String, actionId: String) {
+        if (mock) {
+            mockBackend.cancelPlanned(productId, actionId)
+            return
+        }
+        stopAction(productId, actionId)
+    }
+
+    /** POST a start action for an explicit window (immediate or planned). */
+    private suspend fun postStartAction(
+        productId: String,
+        location: String?,
+        plate: String,
+        startAt: Long,
+        endAt: Long,
+    ) {
+        val action = buildActionPayload(plate, startAt, endAt, location)
         withAuthRetry {
             val payload = postForm(
                 "start_action.json",
@@ -633,14 +738,31 @@ class TwoParkApi {
             )
             assertOk(payload)
         }
-
-        // Verify the action is actually active and fetch its id.
-        repeat(3) {
-            findActiveMember(productId, plateNorm)?.actionId?.let { return it }
-            delay(1.seconds)
-        }
-        throw TwoParkException("Start not confirmed for $plateNorm")
     }
+
+    private fun buildActionPayload(
+        plate: String,
+        startAt: Long,
+        endAt: Long,
+        location: String?,
+    ): JSONObject = JSONObject().put(
+        "action",
+        JSONObject().put(
+            "atn_parameters",
+            JSONArray().apply {
+                put(JSONObject().put("prr_label", "MBR_IDENT").put("prr_value", plate))
+                put(
+                    JSONObject().put("prr_label", "TIMESTART")
+                        .put("prr_value", Planning.formatTimestamp(startAt))
+                )
+                put(
+                    JSONObject().put("prr_label", "TIMEEND")
+                        .put("prr_value", Planning.formatTimestamp(endAt))
+                )
+                put(JSONObject().put("prr_label", "LOCATION").put("prr_value", location ?: ""))
+            }
+        )
+    )
 
     suspend fun stopAction(productId: String, actionId: String) {
         if (mock) {

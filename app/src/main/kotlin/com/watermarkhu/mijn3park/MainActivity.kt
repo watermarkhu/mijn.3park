@@ -83,6 +83,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        // Permits cannot be planned: grey out the Planned tab for them.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                vm.state.collect { state ->
+                    val permit = state.selectedProduct?.hasFixedPlate == true || state.details?.fixedPlate != null
+                    bottomNav.menu.findItem(R.id.nav_planned)?.isEnabled = !permit
+                }
+            }
+        }
 
         if (savedInstanceState == null) {
             bottomNav.selectedItemId = R.id.nav_park
@@ -97,6 +106,7 @@ class MainActivity : AppCompatActivity() {
     private fun titleFor(itemId: Int): Int = when (itemId) {
         R.id.nav_history -> R.string.nav_history
         R.id.nav_transactions -> R.string.nav_transactions
+        R.id.nav_planned -> R.string.nav_planned
         R.id.nav_settings -> R.string.nav_settings
         else -> R.string.nav_park
     }
@@ -124,6 +134,7 @@ class MainActivity : AppCompatActivity() {
     private fun createFragment(itemId: Int): Fragment = when (itemId) {
         R.id.nav_history -> HistoryFragment()
         R.id.nav_transactions -> TransactionsFragment()
+        R.id.nav_planned -> PlannedFragment()
         R.id.nav_settings -> SettingsFragment()
         else -> ParkFragment()
     }
