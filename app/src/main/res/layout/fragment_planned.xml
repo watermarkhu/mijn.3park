@@ -54,9 +54,11 @@
             android:layout_gravity="bottom|end"
             android:layout_margin="16dp"
             android:text="@string/planned_add"
+            app:elevation="0dp"
             app:icon="@drawable/ic_add"
             app:layout_behavior="@null"
             app:marginBottomSystemWindowInsets="false"
-            app:paddingBottomSystemWindowInsets="false"/>
+            app:paddingBottomSystemWindowInsets="false"
+            app:pressedTranslationZ="0dp"/>
     </FrameLayout>
 </LinearLayout>
