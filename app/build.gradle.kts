@@ -61,7 +61,7 @@ android {
         baseline = file("lint-baseline.xml")
         // targetSdk tracks the Google Play minimum, which lags the newest API
         // level lint knows about, so don't fail builds on OldTargetApi.
-        disable += "OldTargetApi"
+        disable += listOf("OldTargetApi", "AndroidGradlePluginVersion")
     }
 }
 

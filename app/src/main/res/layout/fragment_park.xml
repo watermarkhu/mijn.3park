@@ -68,61 +68,8 @@
                     </LinearLayout>
                 </LinearLayout>
 
-                <!-- Dutch license plate input -->
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="80dp"
-                    android:layout_marginTop="16dp"
-                    android:layout_marginBottom="12dp">
-
-                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                        android:id="@+id/plateInput"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/bg_plate"
-                        android:gravity="center"
-                        android:hint="@string/plate_hint"
-                        android:inputType="textCapCharacters|textNoSuggestions"
-                        android:maxLength="8"
-                        android:paddingStart="52dp"
-                        android:paddingEnd="16dp"
-                        android:fontFamily="sans-serif-condensed"
-                        android:textStyle="bold"
-                        android:letterSpacing="0.12"
-                        android:textSize="36sp"
-                        android:textColor="@color/plate_text"
-                        android:textColorHint="@color/plate_hint"
-                        android:importantForAutofill="no"/>
-
-                    <TextView
-                        android:layout_width="36dp"
-                        android:layout_height="match_parent"
-                        android:layout_marginStart="2dp"
-                        android:layout_marginTop="2dp"
-                        android:layout_marginBottom="2dp"
-                        android:background="@drawable/bg_plate_strip"
-                        android:gravity="center_horizontal|bottom"
-                        android:paddingBottom="10dp"
-                        android:text="@string/plate_country"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:textStyle="bold"/>
-                </FrameLayout>
-
-                <HorizontalScrollView
-                    android:id="@+id/plateChipsScroll"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:scrollbars="none">
-
-                    <com.google.android.material.chip.ChipGroup
-                        android:id="@+id/plateChips"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        app:singleLine="true"
-                        app:singleSelection="false"/>
-                </HorizontalScrollView>
+                <!-- Dutch license plate input + plate chips (shared component) -->
+                <include layout="@layout/view_plate_picker"/>
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/statusCard"

@@ -6,6 +6,7 @@
     <string name="nav_park">Park</string>
     <string name="nav_history">History</string>
     <string name="nav_transactions">Transactions</string>
+    <string name="nav_planned">Planned</string>
     <string name="nav_settings">Settings</string>
 
     <!-- Login -->
@@ -98,5 +99,25 @@
     <string name="notification_stop_failed">Stop failed: %1$s</string>
     <string name="notification_logged_out">Logged out, please log in again</string>
     <string name="notification_action_stop">Stop</string>
+    <string name="notification_planned_started">Planned session started for %1$s</string>
     <string name="fgs_justification">Keeps an active parking session running, with a persistent notification, and renews it after midnight until the user stops it.</string>
+
+    <!-- Planned sessions (Gepland) -->
+    <string name="planned_empty">No planned parking sessions</string>
+    <string name="planned_add">Plan session</string>
+    <string name="planned_edit">Edit</string>
+    <string name="planned_permit_unavailable">Planning is not available for permits</string>
+    <string name="planned_confirm_cancel">Remove the planned session for %1$s?</string>
+    <string name="planned_cancel_yes">Yes, remove</string>
+    <string name="planned_start_value">Start: %1$s</string>
+    <string name="planned_end_value">End: %1$s</string>
+    <string name="planned_multi_day_hint">Sessions that run past midnight are created as consecutive same-day plans.</string>
+    <string name="planned_pick_start">Pick start</string>
+    <string name="planned_pick_end">Pick end</string>
+    <string name="error_planned_start_past">Start time must be in the future</string>
+    <string name="error_planned_end_before_start">End time must be after the start time</string>
+    <string name="planned_overlap">%1$s already has a planned session in that period</string>
+    <string name="planned_saved">Planned session saved</string>
+    <string name="planned_changed">Planned session changed</string>
+    <string name="planned_removed">Planned session removed</string>
 </resources>

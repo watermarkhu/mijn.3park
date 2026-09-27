@@ -42,6 +42,7 @@ class ParkingService : Service() {
         const val ACTION_AUTO_STOP = "com.watermarkhu.mijn3park.action.AUTO_STOP"
         const val EXTRA_PLATE = "plate"
         const val EXTRA_END_AT = "end_at"
+        const val EXTRA_PLANNED = "planned"
 
         const val CHANNEL_ID = "parking_active"
         const val NOTIFICATION_ID = 1
@@ -54,11 +55,12 @@ class ParkingService : Service() {
         @Volatile
         var lastError: String? = null
 
-        fun start(context: Context, plate: String, endAt: Long = 0L) {
+        fun start(context: Context, plate: String, endAt: Long = 0L, notifyPlannedStart: Boolean = false) {
             val intent = Intent(context, ParkingService::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_PLATE, normalizePlate(plate))
                 .putExtra(EXTRA_END_AT, endAt)
+                .putExtra(EXTRA_PLANNED, notifyPlannedStart)
             if (Build.VERSION.SDK_INT >= 26) {
                 context.startForegroundService(intent)
             } else {
@@ -94,7 +96,13 @@ class ParkingService : Service() {
             ACTION_START -> {
                 val plate = intent.getStringExtra(EXTRA_PLATE).orEmpty()
                 val endAt = intent.getLongExtra(EXTRA_END_AT, 0L)
-                goForeground(buildNotification(getString(R.string.notification_starting)))
+                val planned = intent.getBooleanExtra(EXTRA_PLANNED, false)
+                goForeground(
+                    buildNotification(
+                        if (planned) getString(R.string.notification_planned_started, plate.ifBlank { "?" })
+                        else getString(R.string.notification_starting)
+                    )
+                )
                 startParking(plate, endAt)
             }
             ACTION_AUTO_STOP -> {
@@ -149,7 +157,7 @@ class ParkingService : Service() {
                 prefs.activeEndAt = endAt.takeIf { it > System.currentTimeMillis() } ?: 0L
                 lastError = null
                 refreshBalance()
-                notify(activeNotification())
+                goForeground(activeNotification())
                 scheduleMidnightRenewal()
                 scheduleEndAlarm(prefs.activeEndAt)
                 onStateChanged?.invoke()
@@ -180,14 +188,14 @@ class ParkingService : Service() {
                 }
                 lastError = null
                 refreshBalance()
-                notify(activeNotification())
+                goForeground(activeNotification())
                 scheduleMidnightRenewal()
                 onStateChanged?.invoke()
             } catch (_: AuthFailedException) {
                 handleAuthFailure()
             } catch (e: Exception) {
                 lastError = e.message ?: e.toString()
-                notify(
+                goForeground(
                     buildNotification(
                         getString(R.string.notification_renew_failed, lastError),
                     ),
@@ -448,6 +456,7 @@ class ParkingService : Service() {
             .setContentTitle(getString(R.string.notification_title))
             .setContentText(text)
             .setContentIntent(contentIntent)
+            .setCategory(Notification.CATEGORY_STATUS)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(true)

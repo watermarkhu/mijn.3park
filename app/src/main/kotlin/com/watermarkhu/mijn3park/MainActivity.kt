@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.addCallback
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
@@ -24,6 +26,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toolbar: MaterialToolbar
     private lateinit var bottomNav: BottomNavigationView
     private lateinit var navHost: View
+    private lateinit var editorHost: View
+    private lateinit var editorBackCallback: OnBackPressedCallback
 
     private lateinit var statusContainer: View
     private lateinit var statusIcon: View
@@ -49,6 +53,11 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         bottomNav = findViewById(R.id.bottomNav)
         navHost = findViewById(R.id.navHost)
+        editorHost = findViewById(R.id.editorHost)
+
+        // The planned-session editor is a full-screen overlay; back closes it.
+        editorBackCallback = onBackPressedDispatcher.addCallback(this) { closePlanEditor() }
+        editorBackCallback.isEnabled = false
 
         statusContainer = findViewById(R.id.statusContainer)
         statusIcon = findViewById(R.id.statusIcon)
@@ -83,6 +92,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        // Permits cannot be planned: grey out the Planned tab for them.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                vm.state.collect { state ->
+                    val permit = state.selectedProduct?.hasFixedPlate == true || state.details?.fixedPlate != null
+                    bottomNav.menu.findItem(R.id.nav_planned)?.isEnabled = !permit
+                }
+            }
+        }
 
         if (savedInstanceState == null) {
             bottomNav.selectedItemId = R.id.nav_park
@@ -97,6 +115,7 @@ class MainActivity : AppCompatActivity() {
     private fun titleFor(itemId: Int): Int = when (itemId) {
         R.id.nav_history -> R.string.nav_history
         R.id.nav_transactions -> R.string.nav_transactions
+        R.id.nav_planned -> R.string.nav_planned
         R.id.nav_settings -> R.string.nav_settings
         else -> R.string.nav_park
     }
@@ -124,6 +143,7 @@ class MainActivity : AppCompatActivity() {
     private fun createFragment(itemId: Int): Fragment = when (itemId) {
         R.id.nav_history -> HistoryFragment()
         R.id.nav_transactions -> TransactionsFragment()
+        R.id.nav_planned -> PlannedFragment()
         R.id.nav_settings -> SettingsFragment()
         else -> ParkFragment()
     }
@@ -135,6 +155,11 @@ class MainActivity : AppCompatActivity() {
     private fun applyHealth(health: HealthState) {
         val onSettings = bottomNav.selectedItemId == R.id.nav_settings
         val showStatus = (health != HealthState.OK) && !onSettings
+        // The editor is a full-screen overlay above the status view: close it so
+        // the failure screen is actually visible.
+        if (showStatus && supportFragmentManager.findFragmentByTag(TAG_EDITOR) != null) {
+            closePlanEditor(restoreHealth = false)
+        }
         statusContainer.isVisible = showStatus
         navHost.isVisible = !showStatus
         if (!showStatus) return
@@ -166,6 +191,41 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Open the full-screen planned-session editor for a new plan. */
+    fun openCreatePlan() = showPlanEditor(PlanEditFragment.newCreate(), R.string.planned_add)
+
+    /** Open the editor for a merged session (edit = cancel + recreate). */
+    fun openEditPlan(plate: String, startAt: Long, endAt: Long, legIds: List<String>) =
+        showPlanEditor(PlanEditFragment.newEdit(plate, startAt, endAt, legIds), R.string.planned_edit)
+
+    private fun showPlanEditor(fragment: PlanEditFragment, titleRes: Int) {
+        if (vm.health.value != HealthState.OK) return
+        if (supportFragmentManager.findFragmentByTag(TAG_EDITOR) != null) return
+        supportFragmentManager.beginTransaction()
+            .setReorderingAllowed(true)
+            .replace(R.id.editorHost, fragment, TAG_EDITOR)
+            .commit()
+        editorHost.isVisible = true
+        bottomNav.isVisible = false
+        toolbar.setTitle(titleRes)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        toolbar.setNavigationOnClickListener { closePlanEditor() }
+        editorBackCallback.isEnabled = true
+    }
+
+    /** Close the planned-session editor if open. */
+    fun closePlanEditor(restoreHealth: Boolean = true) {
+        val fragment = supportFragmentManager.findFragmentByTag(TAG_EDITOR) ?: return
+        supportFragmentManager.beginTransaction().remove(fragment).commit()
+        editorHost.isVisible = false
+        bottomNav.isVisible = true
+        toolbar.setNavigationOnClickListener(null)
+        supportActionBar?.setDisplayHomeAsUpEnabled(false)
+        toolbar.setTitle(titleFor(bottomNav.selectedItemId))
+        editorBackCallback.isEnabled = false
+        if (restoreHealth) applyHealth(vm.health.value)
+    }
+
     /** Clear session, stop the service and return to Login. */
     fun performLogout() {
         vm.logout()
@@ -175,5 +235,9 @@ class MainActivity : AppCompatActivity() {
             },
         )
         finish()
+    }
+
+    private companion object {
+        const val TAG_EDITOR = "plan_editor"
     }
 }

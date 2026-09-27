@@ -4,6 +4,7 @@
     <string name="nav_park">Parkeren</string>
     <string name="nav_history">Historie</string>
     <string name="nav_transactions">Transacties</string>
+    <string name="nav_planned">Gepland</string>
     <string name="nav_settings">Instellingen</string>
 
     <!-- Login -->
@@ -93,5 +94,25 @@
     <string name="notification_stop_failed">Stoppen mislukt: %1$s</string>
     <string name="notification_logged_out">Uitgelogd, log opnieuw in</string>
     <string name="notification_action_stop">Stop</string>
+    <string name="notification_planned_started">Geplande sessie gestart voor %1$s</string>
     <string name="fgs_justification">Houdt een actieve parkeersessie draaiende, met een blijvende melding, en verlengt deze na middernacht totdat de gebruiker stopt.</string>
+
+    <!-- Planned sessions (Gepland) -->
+    <string name="planned_empty">Nog geen geplande parkeersessies</string>
+    <string name="planned_add">Sessie plannen</string>
+    <string name="planned_edit">Bewerken</string>
+    <string name="planned_permit_unavailable">Plannen is niet beschikbaar voor vergunningen</string>
+    <string name="planned_confirm_cancel">Geplande sessie voor %1$s verwijderen?</string>
+    <string name="planned_cancel_yes">Ja, verwijderen</string>
+    <string name="planned_start_value">Start: %1$s</string>
+    <string name="planned_end_value">Eind: %1$s</string>
+    <string name="planned_multi_day_hint">Sessies die over middernacht lopen, worden als aaneengesloten dagplannen aangemaakt.</string>
+    <string name="planned_pick_start">Start kiezen</string>
+    <string name="planned_pick_end">Eind kiezen</string>
+    <string name="error_planned_start_past">Starttijd moet in de toekomst liggen</string>
+    <string name="error_planned_end_before_start">Eindtijd moet na de starttijd liggen</string>
+    <string name="planned_overlap">%1$s heeft al een geplande sessie in die periode</string>
+    <string name="planned_saved">Geplande sessie opgeslagen</string>
+    <string name="planned_changed">Geplande sessie gewijzigd</string>
+    <string name="planned_removed">Geplande sessie verwijderd</string>
 </resources>

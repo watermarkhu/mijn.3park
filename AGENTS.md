@@ -149,6 +149,17 @@ Date/time format is `dd-MM-yyyy HH:mm:ss` (Dutch day-first), **not** ISO.
 - **`UPGRADE_DESCRIPTION` is HTML-entity encoded** (e.g. `&#128;10,00` for
   `€10,00`). Prefer building the label from `PAY_AMOUNT`.
 
+- **Planned ("Gepland") sessions are same-day only.** A `start_action` with a
+  future `TIMESTART` and a `TIMEEND` within the **same calendar day** creates a
+  scheduled action; the web UI cannot plan past midnight. The app splits
+  cross-midnight plans into consecutive same-day legs (each ending `23:59:59`,
+  the next starting `00:00:00`, recursively for multi-day plans) and merges
+  contiguous legs back into one session for display. Scheduled rows are
+  `mbr_actions` with `atn_state=="SCHEDULED"` and `atn_chained=="NO"` (the
+  server auto-starts them at their time; the app only notifies). Cancel/edit
+  reuse `stop_action.json` (edit = cancel + create), exactly like the web app.
+  Helper logic lives in `Planning` (split/merge/overlap).
+
 - **Plate normalization:** uppercase, strip `-` and spaces. Do this everywhere
   before comparing or sending.
 
@@ -177,15 +188,27 @@ OkHttp, Material 3. Built with Gradle (Kotlin DSL); see `app/build.gradle.kts`.
   `state`, `sessionExpired` and one-off `messages` flows.
 - **`LoginActivity`**: credentials → login → preselect first product.
 - **`MainActivity`**: hosts a `BottomNavigationView` (Park / History /
-  Transactions / Settings) and switches fragments (show/hide, state preserved).
-  Owns logout and the expired-session reaction.
+  Transactions / Planned / Settings) and switches fragments (show/hide, state
+  preserved), greys out Planned for permits. Owns logout and the expired-session
+  reaction.
 - **`ParkFragment`**: Dutch plate input, plate chips (fixed plate ★, account
   favorites, local plates, `+`), read-only current-product row, status card with
   MD3 tonal states, start/stop, top-up, end-time picker, favorite dialogs, and
-  pull-to-refresh (`SwipeRefreshLayout`).
+  pull-to-refresh (`SwipeRefreshLayout`). The plate field + chips are the shared
+  `PlatePicker` (`view_plate_picker.xml`), also used by `PlanEditFragment`.
 - **`HistoryFragment` / `TransactionsFragment`**: paged lists
   (`get_action_history` / `get_mutation_history`) that auto-load the next page
   on scroll for the currently selected product.
+- **`PlannedFragment`**: future planned sessions ("Gepland") for the selected
+  product: list (merged from same-day legs), cancel, and an Extended FAB that
+  opens the editor. Hidden/disabled for permits. Backed by `Planning`
+  (split/merge/overlap) and `TwoParkApi.getPlanned` / `planAction` /
+  `cancelPlanned`.
+- **`PlanEditFragment`**: full-screen create/edit screen for a planned session,
+  shown as an overlay in `MainActivity` (`editorHost`, bottom nav hidden).
+  Reuses the Park screen's plate field/chips via `PlatePicker`; a new plan
+  starts with no assumed values. A cross-midnight session is saved as
+  consecutive same-day legs.
 - **`SettingsFragment`**: account email, product selector (+ default star),
   theme selector, logout.
 - **`ParkingService`**: foreground service with the ongoing notification;
@@ -208,8 +231,13 @@ probes the core read-only endpoints (categories, product details, balance,
 never the mutating ones, and not the paged history endpoints so it stays fast)
 and exposes a `HealthState` (`CHECKING`/`OK`/`UNAVAILABLE`/`UNRELIABLE`). The host
 activity shows a full-screen failure view (`view_status.xml`) over Park/History/
-Transactions when not `OK`; **Settings stays reachable**. Parking is disabled
-while unhealthy. `LoginActivity` shows the same view if `check_credentials`
+Transactions/Planned when not `OK`; **Settings stays reachable**. Opening the
+full-screen plan editor is closed again if health drops, so the failure view is
+never hidden behind it. Parking (and planning) is disabled while unhealthy.
+Planned sessions are listed by the same `get_category_product_details` call as
+product details (there is no separate endpoint), so the probe covers planning
+reads; planned create/cancel use `start_action`/`stop_action` and are excluded
+as mutations. `LoginActivity` shows the same view if `check_credentials`
 itself is unavailable/incompatible. Any failure in a fragment's direct API call
 is routed back via `vm.reportApiFailure()` / `reportSessionExpired()`.
 
