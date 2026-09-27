@@ -559,6 +559,7 @@ class ParkFragment : Fragment(R.layout.fragment_park) {
             .setTitleText(R.string.pick_end_time)
             .setHour(preset[Calendar.HOUR_OF_DAY])
             .setMinute(preset[Calendar.MINUTE])
+            .setInputMode(MaterialTimePicker.INPUT_MODE_CLOCK)
             .setTimeFormat(
                 if (android.text.format.DateFormat.is24HourFormat(requireContext())) TimeFormat.CLOCK_24H
                 else TimeFormat.CLOCK_12H

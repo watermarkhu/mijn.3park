@@ -257,6 +257,7 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
         val picker = MaterialTimePicker.Builder()
             .setHour(preset[Calendar.HOUR_OF_DAY])
             .setMinute(preset[Calendar.MINUTE])
+            .setInputMode(MaterialTimePicker.INPUT_MODE_CLOCK)
             .setTimeFormat(
                 if (android.text.format.DateFormat.is24HourFormat(requireContext())) TimeFormat.CLOCK_24H
                 else TimeFormat.CLOCK_12H
