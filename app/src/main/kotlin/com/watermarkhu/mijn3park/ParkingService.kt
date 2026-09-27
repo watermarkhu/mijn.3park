@@ -149,7 +149,7 @@ class ParkingService : Service() {
                 prefs.activeEndAt = endAt.takeIf { it > System.currentTimeMillis() } ?: 0L
                 lastError = null
                 refreshBalance()
-                notify(activeNotification())
+                goForeground(activeNotification())
                 scheduleMidnightRenewal()
                 scheduleEndAlarm(prefs.activeEndAt)
                 onStateChanged?.invoke()
@@ -180,14 +180,14 @@ class ParkingService : Service() {
                 }
                 lastError = null
                 refreshBalance()
-                notify(activeNotification())
+                goForeground(activeNotification())
                 scheduleMidnightRenewal()
                 onStateChanged?.invoke()
             } catch (_: AuthFailedException) {
                 handleAuthFailure()
             } catch (e: Exception) {
                 lastError = e.message ?: e.toString()
-                notify(
+                goForeground(
                     buildNotification(
                         getString(R.string.notification_renew_failed, lastError),
                     ),
@@ -448,6 +448,7 @@ class ParkingService : Service() {
             .setContentTitle(getString(R.string.notification_title))
             .setContentText(text)
             .setContentIntent(contentIntent)
+            .setCategory(Notification.CATEGORY_STATUS)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(true)
