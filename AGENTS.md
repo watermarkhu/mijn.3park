@@ -194,15 +194,21 @@ OkHttp, Material 3. Built with Gradle (Kotlin DSL); see `app/build.gradle.kts`.
 - **`ParkFragment`**: Dutch plate input, plate chips (fixed plate ★, account
   favorites, local plates, `+`), read-only current-product row, status card with
   MD3 tonal states, start/stop, top-up, end-time picker, favorite dialogs, and
-  pull-to-refresh (`SwipeRefreshLayout`).
+  pull-to-refresh (`SwipeRefreshLayout`). The plate field + chips are the shared
+  `PlatePicker` (`view_plate_picker.xml`), also used by `PlanEditFragment`.
 - **`HistoryFragment` / `TransactionsFragment`**: paged lists
   (`get_action_history` / `get_mutation_history`) that auto-load the next page
   on scroll for the currently selected product.
 - **`PlannedFragment`**: future planned sessions ("Gepland") for the selected
-  product: list (merged from same-day legs), create/edit, cancel, and a
-  same-day split for cross-midnight plans. Hidden/disabled for permits.
-  Backed by `Planning` (split/merge/overlap) and `TwoParkApi.getPlanned` /
-  `planAction` / `cancelPlanned`.
+  product: list (merged from same-day legs), cancel, and an Extended FAB that
+  opens the editor. Hidden/disabled for permits. Backed by `Planning`
+  (split/merge/overlap) and `TwoParkApi.getPlanned` / `planAction` /
+  `cancelPlanned`.
+- **`PlanEditFragment`**: full-screen create/edit screen for a planned session,
+  shown as an overlay in `MainActivity` (`editorHost`, bottom nav hidden).
+  Reuses the Park screen's plate field/chips via `PlatePicker`; a new plan
+  starts with no assumed values. A cross-midnight session is saved as
+  consecutive same-day legs.
 - **`SettingsFragment`**: account email, product selector (+ default star),
   theme selector, logout.
 - **`ParkingService`**: foreground service with the ongoing notification;

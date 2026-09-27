@@ -15,22 +15,16 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.datepicker.CalendarConstraints
-import com.google.android.material.datepicker.DateValidatorPointForward
-import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.progressindicator.LinearProgressIndicator
-import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.timepicker.MaterialTimePicker
-import com.google.android.material.timepicker.TimeFormat
 import kotlinx.coroutines.launch
-import java.util.Calendar
-import java.util.TimeZone
 
 /**
- * "Gepland" tab: list, create, edit and cancel future planned parking sessions
- * for the selected product. Sessions that cross midnight are shown as one row
- * but stored as consecutive same-day legs (see [Planning]).
+ * "Gepland" tab: list and cancel future planned parking sessions for the
+ * selected product. Create/edit open the full-screen [PlanEditFragment].
+ * Sessions that cross midnight are shown as one row but stored as consecutive
+ * same-day legs (see [Planning]).
  */
 class PlannedFragment : Fragment(R.layout.fragment_planned) {
 
@@ -42,7 +36,7 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
     private lateinit var empty: TextView
     private lateinit var permitNotice: TextView
     private lateinit var progress: LinearProgressIndicator
-    private lateinit var planButton: MaterialButton
+    private lateinit var planFab: ExtendedFloatingActionButton
     private val adapter = PlannedAdapter()
 
     private val isPermitProduct: Boolean
@@ -56,16 +50,16 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
         empty = view.findViewById(R.id.empty)
         permitNotice = view.findViewById(R.id.permitNotice)
         progress = view.findViewById(R.id.progress)
-        planButton = view.findViewById(R.id.planButton)
+        planFab = view.findViewById(R.id.planFab)
         empty.setText(R.string.planned_empty)
         permitNotice.setText(R.string.planned_permit_unavailable)
 
         recycler.layoutManager = LinearLayoutManager(requireContext())
         recycler.adapter = adapter
-        adapter.onEdit = { showPlanDialog(it) }
+        adapter.onEdit = { openEditor(it) }
         adapter.onCancel = { confirmCancel(it) }
 
-        planButton.setOnClickListener { showPlanDialog(null) }
+        planFab.setOnClickListener { openEditor(null) }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -79,10 +73,24 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
         load()
     }
 
+    private fun openEditor(group: List<PlannedAction>?) {
+        val host = activity as? MainActivity ?: return
+        if (group == null) {
+            host.openCreatePlan()
+        } else {
+            host.openEditPlan(
+                plate = group.first().plate,
+                startAt = Planning.parseTimestamp(group.first().timeStart),
+                endAt = Planning.parseTimestamp(group.last().timeEnd),
+                legIds = group.map { it.id },
+            )
+        }
+    }
+
     private fun load() {
         val permit = isPermitProduct
         permitNotice.isVisible = permit
-        planButton.isVisible = !permit
+        planFab.isVisible = !permit
         if (permit) {
             recycler.isVisible = false
             empty.isVisible = false
@@ -116,104 +124,6 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
         }
     }
 
-    // --- Create / edit ---
-
-    private fun showPlanDialog(group: List<PlannedAction>?) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_planned, null)
-        val plateField = dialogView.findViewById<TextInputEditText>(R.id.planPlate)
-        val startButton = dialogView.findViewById<MaterialButton>(R.id.planStartButton)
-        val endButton = dialogView.findViewById<MaterialButton>(R.id.planEndButton)
-
-        var startAt = group?.firstOrNull()?.let { Planning.parseTimestamp(it.timeStart) }
-            ?: (System.currentTimeMillis() + 60_000L)
-        var endAt = group?.lastOrNull()?.let { Planning.parseTimestamp(it.timeEnd) }
-            ?: (startAt + 60_000L)
-
-        group?.firstOrNull()?.let { plateField.setText(it.plate) }
-
-        fun renderTimes() {
-            startButton.text = getString(
-                R.string.planned_start_value,
-                prettyTime(Planning.formatTimestamp(startAt)),
-            )
-            endButton.text = getString(
-                R.string.planned_end_value,
-                prettyTime(Planning.formatTimestamp(endAt)),
-            )
-        }
-        renderTimes()
-
-        startButton.setOnClickListener {
-            pickDateTime(startAt, R.string.planned_pick_start) { picked ->
-                startAt = picked
-                renderTimes()
-            }
-        }
-        endButton.setOnClickListener {
-            pickDateTime(endAt, R.string.planned_pick_end) { picked ->
-                endAt = picked
-                renderTimes()
-            }
-        }
-
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(if (group == null) R.string.planned_add else R.string.planned_edit)
-            .setView(dialogView)
-            .setPositiveButton(R.string.save) { _, _ ->
-                val plate = normalizePlate(plateField.text?.toString().orEmpty())
-                when {
-                    plate.isBlank() -> toast(R.string.error_no_plate)
-                    startAt <= System.currentTimeMillis() -> toast(R.string.error_planned_start_past)
-                    endAt <= startAt -> toast(R.string.error_planned_end_before_start)
-                    else -> savePlan(group, plate, startAt, endAt)
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    private fun savePlan(group: List<PlannedAction>?, plate: String, startAt: Long, endAt: Long) {
-        val isEdit = group != null
-        val productId = prefs.productId
-        viewLifecycleOwner.lifecycleScope.launch {
-            progress.isVisible = true
-            try {
-                // Refuse overlaps with other planned sessions for the same plate.
-                val editingIds = group?.map { it.id }.orEmpty()
-                val existing = api.getPlanned(productId).filter { it.id !in editingIds }
-                if (Planning.overlaps(existing, plate, startAt, endAt)) {
-                    Toast.makeText(
-                        requireContext(),
-                        getString(R.string.planned_overlap, plate),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    return@launch
-                }
-                group?.forEach { api.cancelPlanned(productId, it.id) }
-                api.planAction(productId, prefs.productLocation.ifBlank { null }, plate, startAt, endAt)
-                Toast.makeText(
-                    requireContext(),
-                    if (isEdit) R.string.planned_changed else R.string.planned_saved,
-                    Toast.LENGTH_SHORT,
-                ).show()
-                load()
-            } catch (_: AuthFailedException) {
-                vm.reportSessionExpired()
-            } catch (_: SessionExpiredException) {
-                vm.reportSessionExpired()
-            } catch (e: ApiUnavailableException) {
-                vm.reportApiFailure(e)
-            } catch (e: ApiIncompatibleException) {
-                vm.reportApiFailure(e)
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), e.message, Toast.LENGTH_LONG).show()
-                load()
-            } finally {
-                progress.isVisible = false
-            }
-        }
-    }
-
     private fun confirmCancel(group: List<PlannedAction>) {
         val plate = group.first().plate
         MaterialAlertDialogBuilder(requireContext())
@@ -236,66 +146,6 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
             .setNegativeButton(R.string.cancel, null)
             .show()
     }
-
-    // --- Date/time pickers ---
-
-    private fun pickDateTime(initial: Long, titleRes: Int, onPicked: (Long) -> Unit) {
-        val constraints = CalendarConstraints.Builder()
-            .setValidator(DateValidatorPointForward.now())
-            .build()
-        val picker = MaterialDatePicker.Builder.datePicker()
-            .setTitleText(titleRes)
-            .setCalendarConstraints(constraints)
-            .setSelection(dateUtcMidnight(initial))
-            .build()
-        picker.addOnPositiveButtonClickListener { showTimePicker(it, initial, onPicked) }
-        picker.show(childFragmentManager, "plan_date")
-    }
-
-    private fun showTimePicker(dateUtcMillis: Long, initial: Long, onPicked: (Long) -> Unit) {
-        val preset = Calendar.getInstance().apply { timeInMillis = initial }
-        val picker = MaterialTimePicker.Builder()
-            .setHour(preset[Calendar.HOUR_OF_DAY])
-            .setMinute(preset[Calendar.MINUTE])
-            .setInputMode(MaterialTimePicker.INPUT_MODE_CLOCK)
-            .setTimeFormat(
-                if (android.text.format.DateFormat.is24HourFormat(requireContext())) TimeFormat.CLOCK_24H
-                else TimeFormat.CLOCK_12H
-            )
-            .build()
-        picker.addOnPositiveButtonClickListener {
-            // The date picker returns a UTC midnight; interpret its fields in
-            // the device zone so the day matches what was shown.
-            val zoneDay = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-                timeInMillis = dateUtcMillis
-            }
-            val picked = Calendar.getInstance().apply {
-                set(Calendar.YEAR, zoneDay[Calendar.YEAR])
-                set(Calendar.MONTH, zoneDay[Calendar.MONTH])
-                set(Calendar.DAY_OF_MONTH, zoneDay[Calendar.DAY_OF_MONTH])
-                set(Calendar.HOUR_OF_DAY, picker.hour)
-                set(Calendar.MINUTE, picker.minute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-            onPicked(picked.timeInMillis)
-        }
-        picker.show(childFragmentManager, "plan_time")
-    }
-
-    /** UTC midnight for the device-zone day [millis] falls in. */
-    private fun dateUtcMidnight(millis: Long): Long {
-        val local = Calendar.getInstance().apply { timeInMillis = millis }
-        return Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-            clear()
-            set(local[Calendar.YEAR], local[Calendar.MONTH], local[Calendar.DAY_OF_MONTH])
-        }.timeInMillis
-    }
-
-    private fun toast(resId: Int) =
-        Toast.makeText(requireContext(), resId, Toast.LENGTH_LONG).show()
-
-    // --- List ---
 
     private class PlannedAdapter : RecyclerView.Adapter<PlannedAdapter.ViewHolder>() {
 

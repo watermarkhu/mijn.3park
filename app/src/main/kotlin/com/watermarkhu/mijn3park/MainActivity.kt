@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.addCallback
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
@@ -24,6 +26,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toolbar: MaterialToolbar
     private lateinit var bottomNav: BottomNavigationView
     private lateinit var navHost: View
+    private lateinit var editorHost: View
+    private lateinit var editorBackCallback: OnBackPressedCallback
 
     private lateinit var statusContainer: View
     private lateinit var statusIcon: View
@@ -49,6 +53,11 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         bottomNav = findViewById(R.id.bottomNav)
         navHost = findViewById(R.id.navHost)
+        editorHost = findViewById(R.id.editorHost)
+
+        // The planned-session editor is a full-screen overlay; back closes it.
+        editorBackCallback = onBackPressedDispatcher.addCallback(this) { closePlanEditor() }
+        editorBackCallback.isEnabled = false
 
         statusContainer = findViewById(R.id.statusContainer)
         statusIcon = findViewById(R.id.statusIcon)
@@ -177,6 +186,40 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Open the full-screen planned-session editor for a new plan. */
+    fun openCreatePlan() = showPlanEditor(PlanEditFragment.newCreate(), R.string.planned_add)
+
+    /** Open the editor for a merged session (edit = cancel + recreate). */
+    fun openEditPlan(plate: String, startAt: Long, endAt: Long, legIds: List<String>) =
+        showPlanEditor(PlanEditFragment.newEdit(plate, startAt, endAt, legIds), R.string.planned_edit)
+
+    private fun showPlanEditor(fragment: PlanEditFragment, titleRes: Int) {
+        if (supportFragmentManager.findFragmentByTag(TAG_EDITOR) != null) return
+        supportFragmentManager.beginTransaction()
+            .setReorderingAllowed(true)
+            .replace(R.id.editorHost, fragment, TAG_EDITOR)
+            .commit()
+        editorHost.isVisible = true
+        bottomNav.isVisible = false
+        toolbar.setTitle(titleRes)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        toolbar.setNavigationOnClickListener { closePlanEditor() }
+        editorBackCallback.isEnabled = true
+    }
+
+    /** Close the planned-session editor if open. */
+    fun closePlanEditor() {
+        val fragment = supportFragmentManager.findFragmentByTag(TAG_EDITOR) ?: return
+        supportFragmentManager.beginTransaction().remove(fragment).commit()
+        editorHost.isVisible = false
+        bottomNav.isVisible = true
+        toolbar.setNavigationOnClickListener(null)
+        supportActionBar?.setDisplayHomeAsUpEnabled(false)
+        toolbar.setTitle(titleFor(bottomNav.selectedItemId))
+        editorBackCallback.isEnabled = false
+        applyHealth(vm.health.value)
+    }
+
     /** Clear session, stop the service and return to Login. */
     fun performLogout() {
         vm.logout()
@@ -186,5 +229,9 @@ class MainActivity : AppCompatActivity() {
             },
         )
         finish()
+    }
+
+    private companion object {
+        const val TAG_EDITOR = "plan_editor"
     }
 }

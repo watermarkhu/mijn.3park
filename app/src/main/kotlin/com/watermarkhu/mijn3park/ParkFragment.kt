@@ -4,7 +4,6 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
-import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -16,7 +15,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
-import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.datepicker.CalendarConstraints
@@ -49,6 +47,7 @@ class ParkFragment : Fragment(R.layout.fragment_park) {
     private lateinit var currentProduct: TextView
     private lateinit var plateInput: MaterialAutoCompleteTextView
     private lateinit var plateChips: ChipGroup
+    private lateinit var platePicker: PlatePicker
     private lateinit var statusText: TextView
     private lateinit var toggleButton: MaterialButton
     private lateinit var progress: LinearProgressIndicator
@@ -78,6 +77,14 @@ class ParkFragment : Fragment(R.layout.fragment_park) {
         currentProduct = view.findViewById(R.id.currentProduct)
         plateInput = view.findViewById(R.id.plateInput)
         plateChips = view.findViewById(R.id.plateChips)
+        platePicker = PlatePicker(requireContext(), plateInput, plateChips).apply {
+            onEditFavorite = { showFavoriteDialog(it) }
+            onAddFavorite = { prefill -> showFavoriteDialog(null, prefillPlate = prefill) }
+            onRemoveLocal = { plate ->
+                prefs.savedPlates = prefs.savedPlates.filter { it != plate }
+                renderPlateChips()
+            }
+        }
         statusText = view.findViewById(R.id.statusText)
         toggleButton = view.findViewById(R.id.toggleButton)
         progress = view.findViewById(R.id.progress)
@@ -214,13 +221,11 @@ class ParkFragment : Fragment(R.layout.fragment_park) {
         val details = appState.details ?: return
         val suggestions =
             (listOfNotNull(details.fixedPlate) + appState.members.map { it.plate } + prefs.savedPlates).distinct()
-        plateInput.setAdapter(
-            ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, suggestions),
-        )
+        platePicker.setSuggestions(suggestions)
         // Prefill the fixed plate when the field is still empty.
         details.fixedPlate?.let { fixed ->
             if (plateInput.text.isNullOrBlank() && !prefs.isParking) {
-                plateInput.setText(fixed, false)
+                platePicker.setText(fixed)
             }
         }
     }
@@ -244,76 +249,10 @@ class ParkFragment : Fragment(R.layout.fragment_park) {
     }
 
     private fun renderPlateChips() {
-        plateChips.removeAllViews()
-
-        // Fixed plate bound to the permit (FLPN products), always first.
-        appState.details?.fixedPlate?.let { fixed ->
-            val chip = Chip(requireContext()).apply {
-                text = getString(R.string.fixed_plate_chip, fixed)
-                isCheckable = false
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { plateInput.setText(fixed, false) }
-            }
-            plateChips.addView(chip)
-        }
-
-        // Plates saved on the 2park account (with nickname when set).
-        val fixedPlate = appState.details?.fixedPlate
-        val serverPlates =
-            appState.members.asSequence().map { it.plate }.toSet() + setOfNotNull(fixedPlate)
-        appState.members.filter { it.plate != fixedPlate }.forEach { member ->
-            val chip = Chip(requireContext()).apply {
-                text = member.nickname?.let { "$it · ${member.plate}" } ?: member.plate
-                isCheckable = false
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { plateInput.setText(member.plate, false) }
-                setOnLongClickListener {
-                    showFavoriteDialog(member)
-                    true
-                }
-            }
-            plateChips.addView(chip)
-        }
-
-        // Locally remembered plates not already on the account (removable).
-        prefs.savedPlates.filter { it !in serverPlates }.forEach { plate ->
-            val chip = Chip(requireContext()).apply {
-                text = plate
-                isCheckable = false
-                isClickable = true
-                isFocusable = true
-                isCloseIconVisible = true
-                setOnClickListener { plateInput.setText(plate, false) }
-                setOnCloseIconClickListener {
-                    prefs.savedPlates = prefs.savedPlates.filter { it != plate }
-                    renderPlateChips()
-                }
-                setOnLongClickListener {
-                    // Promote a local plate to an account favorite.
-                    showFavoriteDialog(null, prefillPlate = plate)
-                    true
-                }
-            }
-            plateChips.addView(chip)
-        }
-
-        // "+" chip to save a new named plate to the account.
-        plateChips.addView(
-            Chip(requireContext()).apply {
-                text = getString(R.string.add)
-                isCheckable = false
-                isClickable = true
-                isFocusable = true
-                setChipIconResource(R.drawable.ic_add)
-                isChipIconVisible = true
-                chipIconTint = ColorStateList.valueOf(
-                    MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary),
-                )
-                contentDescription = getString(R.string.add_plate)
-                setOnClickListener { showFavoriteDialog(null) }
-            }
+        platePicker.render(
+            members = appState.members,
+            fixedPlate = appState.details?.fixedPlate,
+            savedPlates = prefs.savedPlates,
         )
     }
 

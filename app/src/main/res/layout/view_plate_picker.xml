@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Reusable Dutch license-plate selector: the plate field (with country strip)
+  plus the plate chips. Shared by the Park screen and the planned-session
+  editor; see PlatePicker for the rendering logic.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="12dp">
+
+        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+            android:id="@+id/plateInput"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_plate"
+            android:fontFamily="sans-serif-condensed"
+            android:gravity="center"
+            android:hint="@string/plate_hint"
+            android:importantForAutofill="no"
+            android:inputType="textCapCharacters|textNoSuggestions"
+            android:letterSpacing="0.12"
+            android:maxLength="8"
+            android:paddingStart="52dp"
+            android:paddingEnd="16dp"
+            android:textColor="@color/plate_text"
+            android:textColorHint="@color/plate_hint"
+            android:textSize="36sp"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="36dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="2dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="2dp"
+            android:background="@drawable/bg_plate_strip"
+            android:gravity="center_horizontal|bottom"
+            android:paddingBottom="10dp"
+            android:text="@string/plate_country"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold"/>
+    </FrameLayout>
+
+    <HorizontalScrollView
+        android:id="@+id/plateChipsScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:scrollbars="none">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/plateChips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleLine="true"
+            app:singleSelection="false"/>
+    </HorizontalScrollView>
+</LinearLayout>
