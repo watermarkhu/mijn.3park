@@ -231,8 +231,13 @@ probes the core read-only endpoints (categories, product details, balance,
 never the mutating ones, and not the paged history endpoints so it stays fast)
 and exposes a `HealthState` (`CHECKING`/`OK`/`UNAVAILABLE`/`UNRELIABLE`). The host
 activity shows a full-screen failure view (`view_status.xml`) over Park/History/
-Transactions when not `OK`; **Settings stays reachable**. Parking is disabled
-while unhealthy. `LoginActivity` shows the same view if `check_credentials`
+Transactions/Planned when not `OK`; **Settings stays reachable**. Opening the
+full-screen plan editor is closed again if health drops, so the failure view is
+never hidden behind it. Parking (and planning) is disabled while unhealthy.
+Planned sessions are listed by the same `get_category_product_details` call as
+product details (there is no separate endpoint), so the probe covers planning
+reads; planned create/cancel use `start_action`/`stop_action` and are excluded
+as mutations. `LoginActivity` shows the same view if `check_credentials`
 itself is unavailable/incompatible. Any failure in a fragment's direct API call
 is routed back via `vm.reportApiFailure()` / `reportSessionExpired()`.
 

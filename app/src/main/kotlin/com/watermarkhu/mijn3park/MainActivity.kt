@@ -155,6 +155,11 @@ class MainActivity : AppCompatActivity() {
     private fun applyHealth(health: HealthState) {
         val onSettings = bottomNav.selectedItemId == R.id.nav_settings
         val showStatus = (health != HealthState.OK) && !onSettings
+        // The editor is a full-screen overlay above the status view: close it so
+        // the failure screen is actually visible.
+        if (showStatus && supportFragmentManager.findFragmentByTag(TAG_EDITOR) != null) {
+            closePlanEditor(restoreHealth = false)
+        }
         statusContainer.isVisible = showStatus
         navHost.isVisible = !showStatus
         if (!showStatus) return
@@ -194,6 +199,7 @@ class MainActivity : AppCompatActivity() {
         showPlanEditor(PlanEditFragment.newEdit(plate, startAt, endAt, legIds), R.string.planned_edit)
 
     private fun showPlanEditor(fragment: PlanEditFragment, titleRes: Int) {
+        if (vm.health.value != HealthState.OK) return
         if (supportFragmentManager.findFragmentByTag(TAG_EDITOR) != null) return
         supportFragmentManager.beginTransaction()
             .setReorderingAllowed(true)
@@ -208,7 +214,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** Close the planned-session editor if open. */
-    fun closePlanEditor() {
+    fun closePlanEditor(restoreHealth: Boolean = true) {
         val fragment = supportFragmentManager.findFragmentByTag(TAG_EDITOR) ?: return
         supportFragmentManager.beginTransaction().remove(fragment).commit()
         editorHost.isVisible = false
@@ -217,7 +223,7 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
         toolbar.setTitle(titleFor(bottomNav.selectedItemId))
         editorBackCallback.isEnabled = false
-        applyHealth(vm.health.value)
+        if (restoreHealth) applyHealth(vm.health.value)
     }
 
     /** Clear session, stop the service and return to Login. */

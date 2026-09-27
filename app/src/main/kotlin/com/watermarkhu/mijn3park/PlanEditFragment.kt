@@ -110,6 +110,11 @@ class PlanEditFragment : Fragment(R.layout.fragment_plan_edit) {
                 }
             }
         }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                vm.health.collect { render() }
+            }
+        }
         render()
     }
 
@@ -125,7 +130,8 @@ class PlanEditFragment : Fragment(R.layout.fragment_plan_edit) {
             getString(R.string.planned_pick_end)
         }
         saveButton.setText(if (isEdit) R.string.save else R.string.planned_add)
-        saveButton.isEnabled = platePicker.selectedPlate().isNotBlank() &&
+        saveButton.isEnabled = vm.health.value == HealthState.OK &&
+            platePicker.selectedPlate().isNotBlank() &&
             startAt > System.currentTimeMillis() &&
             endAt > startAt
     }
@@ -172,8 +178,10 @@ class PlanEditFragment : Fragment(R.layout.fragment_plan_edit) {
                 vm.reportSessionExpired()
             } catch (e: ApiUnavailableException) {
                 vm.reportApiFailure(e)
+                Toast.makeText(requireContext(), e.message, Toast.LENGTH_LONG).show()
             } catch (e: ApiIncompatibleException) {
                 vm.reportApiFailure(e)
+                Toast.makeText(requireContext(), e.message, Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 Toast.makeText(requireContext(), e.message, Toast.LENGTH_LONG).show()
             } finally {
