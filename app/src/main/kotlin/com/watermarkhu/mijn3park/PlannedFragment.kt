@@ -1,11 +1,14 @@
 package com.watermarkhu.mijn3park
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -53,6 +56,11 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
         planFab = view.findViewById(R.id.planFab)
         empty.setText(R.string.planned_empty)
         permitNotice.setText(R.string.planned_permit_unavailable)
+
+        planFab.post {
+            val lp = planFab.layoutParams as? ViewGroup.MarginLayoutParams
+            Log.d("FAB_CHECK", "bottom=${planFab.bottom}, top=${planFab.top}, marginB=${lp?.bottomMargin}, marginTop=${lp?.topMargin}, transY=${planFab.translationY}, h=${planFab.height}")
+        }
 
         recycler.layoutManager = LinearLayoutManager(requireContext())
         recycler.adapter = adapter

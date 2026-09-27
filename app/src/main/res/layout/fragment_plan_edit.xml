@@ -1,20 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:background="?attr/colorSurface"
+    android:clickable="true"
+    android:focusable="true">
 
     <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/progress"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
         android:indeterminate="true"
         android:visibility="gone"/>
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/planSaveButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:enabled="false"
+        android:text="@string/planned_add"/>
+
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="match_parent"
+        android:layout_below="@id/progress"
+        android:layout_above="@+id/planSaveButton"
         android:fillViewport="true">
 
         <LinearLayout
@@ -24,7 +39,7 @@
             android:paddingStart="16dp"
             android:paddingTop="8dp"
             android:paddingEnd="16dp"
-            android:paddingBottom="24dp">
+            android:paddingBottom="16dp">
 
             <!-- Reused plate input + chips (selection only on this screen). -->
             <include layout="@layout/view_plate_picker"/>
@@ -54,14 +69,4 @@
                 android:textColor="?attr/colorOnSurfaceVariant"/>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/planSaveButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        android:enabled="false"
-        android:text="@string/planned_add"/>
-</LinearLayout>
+</RelativeLayout>

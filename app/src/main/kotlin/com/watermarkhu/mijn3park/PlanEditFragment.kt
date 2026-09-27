@@ -2,7 +2,10 @@ package com.watermarkhu.mijn3park
 
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
@@ -56,6 +59,17 @@ class PlanEditFragment : Fragment(R.layout.fragment_plan_edit) {
         endButton = view.findViewById(R.id.planEndButton)
         saveButton = view.findViewById(R.id.planSaveButton)
         progress = view.findViewById(R.id.progress)
+
+        val initialSaveMarginBottom = (saveButton.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin ?: 0
+        ViewCompat.setOnApplyWindowInsetsListener(saveButton) { v, insets ->
+            val bottomInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            val lp = v.layoutParams as? ViewGroup.MarginLayoutParams
+            if (lp != null) {
+                lp.bottomMargin = initialSaveMarginBottom + bottomInset
+                v.layoutParams = lp
+            }
+            insets
+        }
 
         // Selection-only: no favorite add/edit on the editor screen.
         platePicker = PlatePicker(requireContext(), plateInput, plateChips)
