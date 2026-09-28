@@ -249,8 +249,8 @@ is routed back via `vm.reportApiFailure()` / `reportSessionExpired()`.
   color *roles* (`primaryContainer`, `error`, `surfaceContainerHighest`) for
   state, not literal colors. The Dutch plate (black-on-yellow) is a deliberate
   skeuomorphic exception.
-- Minimum SDK is 23 (required by `EncryptedSharedPreferences`). `deleteSharedPreferences`
-  is API 24+, so guard it. targetSdk 36 (the Google Play minimum;
+- Minimum SDK is 24 (the Google Play upload minimum; `EncryptedSharedPreferences`
+  itself only needs 23). targetSdk 36 (the Google Play minimum;
   `SCHEDULE_EXACT_ALARM` and `foregroundServiceType="specialUse"` are declared
   accordingly).
 
