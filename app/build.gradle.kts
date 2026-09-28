@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.watermarkhu.mijn3park"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 36
         // Placeholders for local/debug builds. release.yml patches these with
         // the real versionName (semantic version) and versionCode (GitHub

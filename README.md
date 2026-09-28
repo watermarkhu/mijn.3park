@@ -32,7 +32,7 @@ persistent notification while parking is active.
 - Talks directly to the undocumented mijn.2park.nl JSON endpoints (no backend
   of our own).
 - Built with Gradle (Kotlin DSL); see `app/build.gradle.kts`.
-- Minimum SDK 23.
+- Minimum SDK 24 (Android 7.0).
 
 See [`AGENTS.md`](AGENTS.md) for detailed notes on the 2Park API, its quirks,
 and the app architecture.

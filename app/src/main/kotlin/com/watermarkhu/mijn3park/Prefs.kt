@@ -2,12 +2,9 @@ package com.watermarkhu.mijn3park
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.os.Build
-import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import org.json.JSONArray
-import java.io.File
 
 /**
  * App state persisted in AES256-GCM [EncryptedSharedPreferences], backed by a
@@ -32,14 +29,7 @@ class Prefs(context: Context) {
     }
 
     private fun deletePrefs(context: Context) {
-        if (Build.VERSION.SDK_INT >= 24) {
-            context.deleteSharedPreferences(PREFS_NAME)
-        } else {
-            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit {
-                clear()
-            }
-            File(File(context.applicationInfo.dataDir, "shared_prefs"), "$PREFS_NAME.xml").delete()
-        }
+        context.deleteSharedPreferences(PREFS_NAME)
     }
 
     private fun buildEncrypted(context: Context, masterKey: MasterKey): SharedPreferences =

@@ -37,7 +37,7 @@ melding zolang het parkeren actief is.
 - Praat rechtstreeks met de niet-gedocumenteerde JSON-endpoints van
   mijn.2park.nl (geen eigen backend).
 - Gebouwd met Gradle (Kotlin DSL); zie `app/build.gradle.kts`.
-- Minimale SDK 23.
+- Minimale SDK 24 (Android 7.0).
 
 Zie [`AGENTS.md`](AGENTS.md) voor uitgebreide notities over de 2Park-API, de
 eigenaardigheden ervan en de architectuur van de app.
