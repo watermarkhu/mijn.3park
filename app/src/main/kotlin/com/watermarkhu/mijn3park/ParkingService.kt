@@ -43,6 +43,7 @@ class ParkingService : Service() {
         const val EXTRA_PLATE = "plate"
         const val EXTRA_START_AT = "start_at"
         const val EXTRA_END_AT = "end_at"
+        const val EXTRA_FROM_PLAN = "from_plan"
 
         const val CHANNEL_ID = NotificationChannels.ACTIVE
         const val NOTIFICATION_ID = 1
@@ -72,12 +73,13 @@ class ParkingService : Service() {
          * action. [startAt]/[endAt] come from the server; 0 means unknown /
          * open-ended.
          */
-        fun adopt(context: Context, plate: String, startAt: Long, endAt: Long) {
+        fun adopt(context: Context, plate: String, startAt: Long, endAt: Long, fromPlan: Boolean = false) {
             val intent = Intent(context, ParkingService::class.java)
                 .setAction(ACTION_ADOPT)
                 .putExtra(EXTRA_PLATE, normalizePlate(plate))
                 .putExtra(EXTRA_START_AT, startAt)
                 .putExtra(EXTRA_END_AT, endAt)
+                .putExtra(EXTRA_FROM_PLAN, fromPlan)
             if (Build.VERSION.SDK_INT >= 26) {
                 context.startForegroundService(intent)
             } else {
@@ -120,7 +122,8 @@ class ParkingService : Service() {
                 val plate = intent.getStringExtra(EXTRA_PLATE).orEmpty()
                 val startAt = intent.getLongExtra(EXTRA_START_AT, 0L)
                 val endAt = intent.getLongExtra(EXTRA_END_AT, 0L)
-                adoptParking(plate, startAt, endAt)
+                val fromPlan = intent.getBooleanExtra(EXTRA_FROM_PLAN, false)
+                adoptParking(plate, startAt, endAt, fromPlan)
             }
             ACTION_AUTO_STOP -> {
                 if ((prefs.isParking) && (prefs.activeEndAt > 0L)) {
@@ -172,6 +175,7 @@ class ParkingService : Service() {
                 prefs.activeSince = System.currentTimeMillis()
                 // Ignore stale end times that passed while starting.
                 prefs.activeEndAt = endAt.takeIf { it > System.currentTimeMillis() } ?: 0L
+                prefs.activeFromPlan = false
                 lastError = null
                 refreshBalance()
                 goForeground(activeNotification())
@@ -196,7 +200,7 @@ class ParkingService : Service() {
      * issues no start action (the session already exists); it mirrors the
      * server's window locally and schedules the matching end.
      */
-    private fun adoptParking(plate: String, startAt: Long, endAt: Long) {
+    private fun adoptParking(plate: String, startAt: Long, endAt: Long, fromPlan: Boolean) {
         if (plate.isBlank()) {
             stopSelfCompletely()
             return
@@ -205,8 +209,12 @@ class ParkingService : Service() {
         prefs.activePlate = plate
         prefs.activeSince = startAt.takeIf { it > 0L } ?: System.currentTimeMillis()
         prefs.activeEndAt = endAt.takeIf { it > System.currentTimeMillis() } ?: 0L
+        prefs.activeFromPlan = fromPlan
         lastError = null
         goForeground(activeNotification())
+        // The ongoing notification now announces this session; drop the one-shot
+        // "planned session started" so the same start is not shown twice.
+        SessionScheduler.clearStartedEvent(this)
         currentJob?.cancel()
         currentJob = scope.launch {
             refreshBalance()
@@ -445,7 +453,12 @@ class ParkingService : Service() {
                 getString(R.string.notification_text, prefs.activePlate, since)
             }
         }
-        return buildNotification(text, showStop = true)
+        val titleRes = if (prefs.activeFromPlan) {
+            R.string.notification_title_planned
+        } else {
+            R.string.notification_title
+        }
+        return buildNotification(text, showStop = true, titleRes = titleRes)
     }
 
     /** Short end-time form: "18:00" today, "5 Mar 10:00" on another day. */
@@ -458,7 +471,11 @@ class ParkingService : Service() {
         return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(endAtMillis))
     }
 
-    private fun buildNotification(text: String, showStop: Boolean = false): Notification {
+    private fun buildNotification(
+        text: String,
+        showStop: Boolean = false,
+        titleRes: Int = R.string.notification_title,
+    ): Notification {
         val contentFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val contentIntent = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java), contentFlags
@@ -466,7 +483,7 @@ class ParkingService : Service() {
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_car)
-            .setContentTitle(getString(R.string.notification_title))
+            .setContentTitle(getString(titleRes))
             .setContentText(text)
             .setContentIntent(contentIntent)
             .setCategory(Notification.CATEGORY_STATUS)

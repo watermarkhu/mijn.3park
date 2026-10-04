@@ -274,6 +274,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 activeMember.plate,
                 serverStart ?: now,
                 planned?.endAt ?: serverEnd ?: 0L,
+                fromPlan = planned != null,
             )
             SessionScheduler.onActiveSessionChanged(getApplication())
         } else if (activeMember == null && prefs.isParking) {

@@ -96,6 +96,7 @@
     <string name="notification_channel_name">Actief parkeren</string>
     <string name="notification_channel_description">Zichtbaar zolang er wordt geparkeerd</string>
     <string name="notification_title">Parkeren actief</string>
+    <string name="notification_title_planned">Geplande sessie actief</string>
     <string name="notification_text">%1$s · sinds %2$s</string>
     <string name="notification_text_balance">%1$s · sinds %2$s · saldo %3$s</string>
     <string name="notification_text_until">%1$s · sinds %2$s · tot %3$s</string>
@@ -109,8 +110,8 @@
     <string name="notification_action_stop">Stop</string>
 
     <!-- Session events & reminders -->
-    <string name="notification_session_started">Sessie gestart voor %1$s</string>
-    <string name="notification_session_ended">Sessie voor %1$s is beëindigd</string>
+    <string name="notification_session_started">Geplande sessie gestart voor %1$s</string>
+    <string name="notification_session_ended">Geplande sessie voor %1$s is beëindigd</string>
     <string name="notification_session_reminder">Nog aan het parkeren %1$s</string>
     <string name="session_events_channel_name">Sessie-updates</string>
     <string name="session_events_channel_description">Getoond wanneer een geplande parkeersessie start of eindigt</string>
