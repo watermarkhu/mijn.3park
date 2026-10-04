@@ -63,7 +63,7 @@
     <string name="health_unreliable_message">2Park returned unexpected data. Parking is disabled to avoid mistakes.</string>
 
     <!-- Affiliation disclaimer -->
-    <string name="disclaimer">mijn.3park is an unofficial app and is not affiliated with mijn.2park.nl. It is a solo project, built because the official mijn.2park.nl interface is awkward to use. No data is sent to third parties. The app connects directly to 2Park, and your details are kept only on this device.</string>
+    <string name="disclaimer">mijn.3park is an unofficial app and is not affiliated with mijn.2park.nl. It is a solo project, built because the official mijn.2park.nl interface is awkward to use. No data is sent to third parties. The app connects directly to mijn.2park.nl, and your details are kept only on this device.</string>
     <string name="set_end_time">Set end time (optional)</string>
     <string name="clear">Clear</string>
     <string name="ends_at">Ends at %1$s</string>
@@ -85,8 +85,8 @@
     <string name="settings_theme_system">System default</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
-    <string name="settings_expressive">Material 3 Expressive</string>
-    <string name="settings_expressive_summary">Uses the Material 3 Expressive dynamic colour palette instead of the standard Material 3 colours.</string>
+    <string name="settings_expressive">Material 3</string>
+    <string name="settings_expressive_summary">Uses the dynamic color palette instead of the standard Material 3 colors.</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_system">System default</string>
     <string name="settings_language_en">English</string>

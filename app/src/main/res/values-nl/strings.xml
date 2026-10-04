@@ -58,7 +58,7 @@
     <string name="health_unreliable_message">2Park gaf onverwachte gegevens terug. Parkeren is uitgeschakeld om fouten te voorkomen.</string>
 
     <!-- Affiliation disclaimer -->
-    <string name="disclaimer">mijn.3park is een onofficiële app en is niet verbonden aan mijn.2park.nl. Het is een soloproject, gemaakt omdat de officiële interface van mijn.2park.nl onhandig is. Er worden geen gegevens naar derden gestuurd. De app verbindt rechtstreeks met 2Park en je gegevens blijven alleen op dit toestel.</string>
+    <string name="disclaimer">mijn.3park is een onofficiële app en is niet verbonden aan mijn.2park.nl. Het is een soloproject, gemaakt omdat de officiële interface van mijn.2park.nl onhandig is. Er worden geen gegevens naar derden gestuurd. De app verbindt rechtstreeks met mijn.2park.nl en je gegevens blijven alleen op dit toestel.</string>
     <string name="set_end_time">Eindtijd instellen (optioneel)</string>
     <string name="clear">Wissen</string>
     <string name="ends_at">Eindigt om %1$s</string>
@@ -80,8 +80,8 @@
     <string name="settings_theme_system">Systeem</string>
     <string name="settings_theme_light">Licht</string>
     <string name="settings_theme_dark">Donker</string>
-    <string name="settings_expressive">Material 3 Expressive</string>
-    <string name="settings_expressive_summary">Gebruikt het Material 3 Expressive dynamische kleurenpalet in plaats van de standaard Material 3-kleuren.</string>
+    <string name="settings_expressive">Material 3</string>
+    <string name="settings_expressive_summary">Gebruikt het dynamische kleurenpalet in plaats van de standaard Material 3-kleuren.</string>
     <string name="settings_language">Taal</string>
     <string name="settings_language_system">Systeemstandaard</string>
     <string name="settings_language_en">Engels</string>

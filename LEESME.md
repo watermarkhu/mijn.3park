@@ -51,5 +51,5 @@ eigenaardigheden ervan en de architectuur van de app.
 > mijn.3park is een onofficiële app en is niet verbonden aan mijn.2park.nl. Het
 > is een soloproject, gemaakt omdat de officiële mijn.2park.nl-interface
 > onhandig is in gebruik. Er worden geen gegevens naar derden gestuurd. De app
-> maakt rechtstreeks verbinding met 2Park en je gegevens blijven alleen op dit
+> maakt rechtstreeks verbinding met mijn.2park.nl en je gegevens blijven alleen op dit
 > toestel.

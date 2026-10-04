@@ -46,4 +46,4 @@ and the app architecture.
 > mijn.3park is an unofficial app and is not affiliated with mijn.2park.nl. It
 > is a solo project, built because the official mijn.2park.nl interface is
 > awkward to use. No data is sent to third parties. The app connects directly
-> to 2Park, and your details are kept only on this device.
+> to mijn.2park.nl, and your details are kept only on this device.
