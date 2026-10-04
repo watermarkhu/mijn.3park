@@ -52,6 +52,8 @@ class Prefs(context: Context) {
 
     private companion object {
         const val PREFS_NAME = "mijn3park_secure"
+        const val KEY_PLANNED_BY_PRODUCT = "planned_sessions_by_product"
+        const val KEY_PLANNED_LEGACY = "planned_sessions"
     }
 
     var email: String
@@ -135,38 +137,97 @@ class Prefs(context: Context) {
         get() = activePlate.isNotBlank()
 
     /**
-     * Internal planned-session state, refreshed from the server whenever the
-     * app opens. Also keeps sessions that already started but have not ended
-     * yet, so their end (and reminder) alarms survive a server-side auto-start.
+     * Internal planned-session state, keyed by product id. Refreshed from the
+     * server whenever the app opens (and when the Planned tab is shown), so
+     * externally added or removed sessions converge. Also keeps sessions that
+     * already started but have not ended yet, so their end (and reminder) alarms
+     * survive a server-side auto-start.
      */
-    var plannedSessions: List<PlannedSession>
+    var plannedSessionsByProduct: Map<String, List<PlannedSession>>
         get() {
-            val raw = prefs.getString("planned_sessions", "[]") ?: "[]"
+            val raw = prefs.getString(KEY_PLANNED_BY_PRODUCT, null)
+                ?: return migrateLegacyPlannedSessions()
             return try {
-                val array = JSONArray(raw)
-                (0 until array.length()).mapNotNull { index ->
-                    val obj = array.optJSONObject(index) ?: return@mapNotNull null
-                    val plate = obj.optString("plate")
-                    if (plate.isBlank()) return@mapNotNull null
-                    PlannedSession(plate, obj.optLong("start"), obj.optLong("end"))
+                val obj = JSONObject(raw)
+                buildMap {
+                    for (productId in obj.keys()) {
+                        put(productId, parsePlannedSessions(obj.optJSONArray(productId)))
+                    }
                 }
             } catch (_: Exception) {
-                emptyList()
+                emptyMap()
             }
         }
         set(value) {
-            val array = JSONArray()
-            value.forEach { session ->
-                array.put(
-                    JSONObject().apply {
-                        put("plate", session.plate)
-                        put("start", session.startAt)
-                        put("end", session.endAt)
-                    },
-                )
+            val obj = JSONObject()
+            value.forEach { (productId, sessions) ->
+                obj.put(productId, plannedSessionsJson(sessions))
             }
-            prefs.edit { putString("planned_sessions", array.toString()) }
+            prefs.edit { putString(KEY_PLANNED_BY_PRODUCT, obj.toString()) }
         }
+
+    /** Planned sessions recorded for [productId] (empty when none). */
+    fun plannedSessions(productId: String): List<PlannedSession> =
+        plannedSessionsByProduct[productId].orEmpty()
+
+    /** Replace the stored planned sessions for [productId]. */
+    fun setPlannedSessions(productId: String, sessions: List<PlannedSession>) {
+        val updated = plannedSessionsByProduct.toMutableMap()
+        if (sessions.isEmpty()) updated.remove(productId) else updated[productId] = sessions
+        plannedSessionsByProduct = updated
+    }
+
+    /** Every recorded planned session, across all products. */
+    fun allPlannedSessions(): List<PlannedSession> =
+        plannedSessionsByProduct.values.flatten()
+
+    fun clearPlannedSessions() {
+        prefs.edit {
+            remove(KEY_PLANNED_BY_PRODUCT)
+            remove(KEY_PLANNED_LEGACY)
+        }
+    }
+
+    /** One-time upgrade of the pre-per-product single list. */
+    private fun migrateLegacyPlannedSessions(): Map<String, List<PlannedSession>> {
+        val raw = prefs.getString(KEY_PLANNED_LEGACY, null) ?: return emptyMap()
+        val pid = productId
+        if (pid.isBlank()) return emptyMap()
+        val sessions = try {
+            parsePlannedSessions(JSONArray(raw))
+        } catch (_: Exception) {
+            emptyList()
+        }
+        if (sessions.isEmpty()) return emptyMap()
+        val migrated = mapOf(pid to sessions)
+        plannedSessionsByProduct = migrated
+        prefs.edit { remove(KEY_PLANNED_LEGACY) }
+        return migrated
+    }
+
+    private fun parsePlannedSessions(array: JSONArray?): List<PlannedSession> {
+        if (array == null) return emptyList()
+        return (0 until array.length()).mapNotNull { index ->
+            val obj = array.optJSONObject(index) ?: return@mapNotNull null
+            val plate = obj.optString("plate")
+            if (plate.isBlank()) return@mapNotNull null
+            PlannedSession(plate, obj.optLong("start"), obj.optLong("end"))
+        }
+    }
+
+    private fun plannedSessionsJson(sessions: List<PlannedSession>): JSONArray {
+        val array = JSONArray()
+        sessions.forEach { session ->
+            array.put(
+                JSONObject().apply {
+                    put("plate", session.plate)
+                    put("start", session.startAt)
+                    put("end", session.endAt)
+                },
+            )
+        }
+        return array
+    }
 
     /** Reminder cadence in minutes while a session is active; 0 means off. */
     var reminderIntervalMinutes: Int
@@ -179,10 +240,14 @@ class Prefs(context: Context) {
         set(value) = prefs.edit { putString("last_session_event_key", value) }
 
     fun clearActiveParking() {
-        prefs.edit().remove("active_plate").remove("active_since").remove("active_end_at").apply()
+        prefs.edit {
+            remove("active_plate")
+            remove("active_since")
+            remove("active_end_at")
+        }
     }
 
     fun clearAll() {
-        prefs.edit().clear().apply()
+        prefs.edit { clear() }
     }
 }

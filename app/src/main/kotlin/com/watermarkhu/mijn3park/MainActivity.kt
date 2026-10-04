@@ -42,6 +42,9 @@ class MainActivity : AppCompatActivity() {
 
     private var healthAlertDialog: AlertDialog? = null
 
+    /** Cold start is already covered by [AppViewModel.start]; later onStarts refresh. */
+    private var firstStart = true
+
     private val vm: AppViewModel by viewModels()
 
     /** Result is surfaced in Settings; here we only avoid prompting twice. */
@@ -131,6 +134,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         vm.start()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (firstStart) {
+            firstStart = false
+            return
+        }
+        // Re-opened from the background: converge planned sessions with the server.
+        if (vm.health.value == HealthState.OK) vm.refreshPlannedSessions()
     }
 
     /**

@@ -34,6 +34,32 @@ object ReminderMath {
 }
 
 /**
+ * Pure pruning of the persisted planned-session store, kept free of Android
+ * types so it can be unit-tested. A stored session stays valid when it is either
+ * still scheduled on the server ([merged]) or currently running and backed by an
+ * active server action ([activePlates]); everything ended or dangling is
+ * dropped.
+ */
+object SessionPrune {
+
+    fun valid(
+        previous: List<PlannedSession>,
+        merged: List<PlannedSession>,
+        activePlates: Set<String>,
+        now: Long,
+    ): List<PlannedSession> {
+        // Carry a session over only while it is actually running on the server:
+        // an auto-started plan disappears from the scheduled list but shows up
+        // as an active member, whereas an externally cancelled one shows up as
+        // neither and is dropped.
+        val carryOver = previous.filter {
+            it.startAt <= now && it.endAt > now && it.plate in activePlates
+        }
+        return (merged + carryOver).filter { it.endAt > now }.distinct()
+    }
+}
+
+/**
  * Owns every notification alarm the app schedules: "session started" /
  * "session ended" for planned sessions, and the recurring "still parking"
  * reminder chain. State is derived from [Prefs] so it survives process death
@@ -50,19 +76,24 @@ object SessionScheduler {
     // --- Public API ---
 
     /**
-     * Persist the freshly merged planned sessions and reschedule all alarms.
-     * Sessions that already started but have not ended are carried over so the
-     * server-side auto-start does not drop their end (and reminder) alarms.
+     * Persist the freshly merged planned sessions for [productId] and reschedule
+     * its alarms. Sessions that already started but have not ended are carried
+     * over (while their plate is active on the server) so the server-side
+     * auto-start does not drop their end (and reminder) alarms.
      */
-    fun onPlannedSessionsUpdated(context: Context, merged: List<PlannedSession>) {
+    fun onPlannedSessionsUpdated(
+        context: Context,
+        productId: String,
+        merged: List<PlannedSession>,
+        activePlates: Set<String>,
+    ) {
         val app = context.applicationContext
         val prefs = Prefs(app)
         val now = System.currentTimeMillis()
-        val previous = prefs.plannedSessions
+        val previous = prefs.plannedSessions(productId)
         cancelPlannedAlarms(app, previous)
-        val carryOver = previous.filter { it.startAt <= now && it.endAt > now }
-        val sessions = (merged + carryOver).distinct()
-        prefs.plannedSessions = sessions
+        val sessions = SessionPrune.valid(previous, merged, activePlates, now)
+        prefs.setPlannedSessions(productId, sessions)
         schedulePlannedAlarms(app, sessions, now)
         scheduleReminders(app, prefs)
     }
@@ -72,9 +103,11 @@ object SessionScheduler {
         val app = context.applicationContext
         val prefs = Prefs(app)
         val now = System.currentTimeMillis()
-        val sessions = prefs.plannedSessions.filter { it.endAt > now }
-        prefs.plannedSessions = sessions
-        schedulePlannedAlarms(app, sessions, now)
+        for ((productId, sessions) in prefs.plannedSessionsByProduct) {
+            val kept = sessions.filter { it.endAt > now }
+            prefs.setPlannedSessions(productId, kept)
+            schedulePlannedAlarms(app, kept, now)
+        }
         scheduleReminders(app, prefs)
     }
 
@@ -89,9 +122,9 @@ object SessionScheduler {
     fun cancelAll(context: Context) {
         val app = context.applicationContext
         val prefs = Prefs(app)
-        cancelPlannedAlarms(app, prefs.plannedSessions)
+        prefs.plannedSessionsByProduct.values.forEach { cancelPlannedAlarms(app, it) }
         cancelReminderAlarm(app)
-        prefs.plannedSessions = emptyList()
+        prefs.clearPlannedSessions()
     }
 
     /** Re-evaluate reminders after a session starts or stops. */
@@ -216,7 +249,7 @@ object SessionScheduler {
             if (prefs.activeEndAt > 0L) {
                 return PlannedSession(prefs.activePlate, prefs.activeSince, prefs.activeEndAt)
             }
-            val planned = prefs.plannedSessions
+            val planned = prefs.allPlannedSessions()
                 .filter { it.plate == prefs.activePlate }
                 .maxByOrNull { it.endAt }
             if (planned != null) {
@@ -225,7 +258,7 @@ object SessionScheduler {
             }
             return PlannedSession(prefs.activePlate, prefs.activeSince, 0L)
         }
-        return prefs.plannedSessions.firstOrNull { it.startAt <= now && now < it.endAt }
+        return prefs.allPlannedSessions().firstOrNull { it.startAt <= now && now < it.endAt }
     }
 
     private fun sessionPendingIntent(

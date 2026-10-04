@@ -42,12 +42,6 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
     private lateinit var planFab: ExtendedFloatingActionButton
     private val adapter = PlannedAdapter()
 
-    private val isPermitProduct: Boolean
-        get() {
-            val state = vm.state.value
-            return state.selectedProduct?.hasFixedPlate == true || state.details?.fixedPlate != null
-        }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         recycler = view.findViewById(R.id.list)
         empty = view.findViewById(R.id.empty)
@@ -71,14 +65,16 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                vm.state.collect { load() }
+                vm.state.collect { render(it) }
             }
         }
     }
 
     override fun onResume() {
         super.onResume()
-        load()
+        // Re-read from the server so externally added or removed sessions appear
+        // here and in the notification store.
+        if (vm.health.value == HealthState.OK) vm.refreshPlannedSessions()
     }
 
     private fun openEditor(group: List<PlannedAction>?) {
@@ -95,8 +91,9 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
         }
     }
 
-    private fun load() {
-        val permit = isPermitProduct
+    /** Render the selected product's planned sessions from shared state. */
+    private fun render(state: AppState) {
+        val permit = state.selectedProduct?.hasFixedPlate == true || state.details?.fixedPlate != null
         permitNotice.isVisible = permit
         planFab.isVisible = !permit
         if (permit) {
@@ -106,30 +103,18 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
             return
         }
         recycler.isVisible = true
-        val productId = prefs.productId
-        if (productId.isBlank()) return
-        progress.isVisible = true
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val planned = api.getPlanned(productId)
-                if (productId != prefs.productId) return@launch
-                val groups = Planning.mergeGroups(planned)
-                adapter.submit(groups)
-                empty.isVisible = groups.isEmpty()
-            } catch (_: AuthFailedException) {
-                vm.reportSessionExpired()
-            } catch (_: SessionExpiredException) {
-                vm.reportSessionExpired()
-            } catch (e: ApiUnavailableException) {
-                vm.reportApiFailure(e)
-            } catch (e: ApiIncompatibleException) {
-                vm.reportApiFailure(e)
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), e.message, Toast.LENGTH_LONG).show()
-            } finally {
-                progress.isVisible = false
-            }
+        if (prefs.productId.isBlank()) return
+        // Only show details that belong to the selected product (a switch clears
+        // them, so the list can't briefly show the previous product's sessions).
+        val actions = if (state.selectedProduct?.id == prefs.productId) {
+            state.details?.plannedActions.orEmpty()
+        } else {
+            emptyList()
         }
+        val groups = Planning.mergeGroups(actions)
+        adapter.submit(groups)
+        empty.isVisible = groups.isEmpty()
+        progress.isVisible = state.details == null
     }
 
     private fun confirmCancel(group: List<PlannedAction>) {
@@ -141,8 +126,7 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
                     try {
                         group.forEach { api.cancelPlanned(prefs.productId, it.id) }
                         Toast.makeText(requireContext(), R.string.planned_removed, Toast.LENGTH_SHORT).show()
-                        load()
-                        // Persist the removal and drop the session's alarms.
+                        // Persist the removal, drop the session's alarms and reload.
                         vm.refreshRemoteData()
                     } catch (_: AuthFailedException) {
                         vm.reportSessionExpired()

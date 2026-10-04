@@ -133,7 +133,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // Persist and schedule the freshly read planned sessions before
                 // syncing the running session, so a server-side auto-start can
                 // match (and dedupe) its start notification.
-                syncPlannedSessions(details)
+                syncPlannedSessions(product.id, details)
 
                 // Sync local state with the server (parking started/stopped elsewhere).
                 syncParkingSession(details)
@@ -199,7 +199,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     prefs.lastBalance = balance.formatted
                     _state.update { it.copy(balance = balance.formatted) }
                 }
-                syncPlannedSessions(details)
+                syncPlannedSessions(prefs.productId, details)
                 syncParkingSession(details)
             } catch (_: AuthFailedException) {
                 _sessionExpired.tryEmit(Unit)
@@ -217,6 +217,36 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Refresh the planned-session store for the selected product without
+     * touching health or balance. Called when the app returns to the foreground
+     * and when the Planned tab opens, so externally added or removed sessions
+     * (and their alarms) converge. Failures leave the last known store in place.
+     */
+    fun refreshPlannedSessions() {
+        val productId = prefs.productId
+        if (productId.isBlank()) return
+        viewModelScope.launch {
+            try {
+                ensureLoggedIn()
+                val details = api.getDetails(productId)
+                if (productId != prefs.productId) return@launch
+                _state.update {
+                    it.copy(details = details, members = details.members, selectedProduct = selectedProduct())
+                }
+                syncPlannedSessions(productId, details)
+            } catch (_: AuthFailedException) {
+                _sessionExpired.tryEmit(Unit)
+            } catch (_: SessionExpiredException) {
+                _sessionExpired.tryEmit(Unit)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Keep the last known store; the next sync will retry.
+            }
+        }
+    }
+
     /** Align the local parking session with what the server reports. */
     private fun syncParkingSession(details: ProductDetails) {
         val activeMember = details.members.firstOrNull { it.active && it.actionId != null }
@@ -226,7 +256,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             // A planned session the server auto-started may already have been
             // announced by its start alarm; notifySessionStarted dedupes them.
             val now = prefs.activeSince
-            val planned = prefs.plannedSessions.firstOrNull {
+            val planned = prefs.allPlannedSessions().firstOrNull {
                 it.plate == activeMember.plate && it.startAt <= now && it.endAt > now
             }
             if (planned != null) {
@@ -241,11 +271,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Persist the merged planned sessions and reschedule their alarms. */
-    private fun syncPlannedSessions(details: ProductDetails) {
+    /** Persist the merged planned sessions for [productId] and reschedule them. */
+    private fun syncPlannedSessions(productId: String, details: ProductDetails) {
+        val activePlates = details.members
+            .filter { it.active && it.actionId != null }
+            .map { it.plate }
+            .toSet()
         SessionScheduler.onPlannedSessionsUpdated(
             getApplication(),
+            productId,
             Planning.mergeToSessions(details.plannedActions),
+            activePlates,
         )
     }
 
