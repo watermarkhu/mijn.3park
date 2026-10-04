@@ -15,16 +15,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.ChipGroup
-import com.google.android.material.datepicker.CalendarConstraints
-import com.google.android.material.datepicker.DateValidatorPointForward
-import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
-import com.google.android.material.timepicker.MaterialTimePicker
-import com.google.android.material.timepicker.TimeFormat
 import kotlinx.coroutines.launch
 import java.util.Calendar
-import java.util.TimeZone
 
 /**
  * Full-screen editor for a planned ("Gepland") parking session. Reuses the
@@ -85,14 +79,14 @@ class PlanEditFragment : Fragment(R.layout.fragment_plan_edit) {
 
         plateInput.doAfterTextChanged { render() }
         startButton.setOnClickListener {
-            pickDateTime(startAt, R.string.planned_pick_start) { picked ->
-                startAt = picked
+            DateTimePicker.show(this, R.string.planned_pick_start, startAt) { picked ->
+                startAt = atLeastNow(picked)
                 render()
             }
         }
         endButton.setOnClickListener {
-            pickDateTime(endAt, R.string.planned_pick_end) { picked ->
-                endAt = picked
+            DateTimePicker.show(this, R.string.planned_pick_end, endAt) { picked ->
+                endAt = atLeastNow(picked)
                 render()
             }
         }
@@ -192,57 +186,12 @@ class PlanEditFragment : Fragment(R.layout.fragment_plan_edit) {
 
     // --- Date/time pickers ---
 
-    private fun pickDateTime(initial: Long, titleRes: Int, onPicked: (Long) -> Unit) {
-        val constraints = CalendarConstraints.Builder()
-            .setValidator(DateValidatorPointForward.now())
-            .build()
-        val seeded = if (initial > 0L) initial else System.currentTimeMillis()
-        val picker = MaterialDatePicker.Builder.datePicker()
-            .setTitleText(titleRes)
-            .setCalendarConstraints(constraints)
-            .setSelection(dateUtcMidnight(seeded))
-            .build()
-        picker.addOnPositiveButtonClickListener { showTimePicker(it, seeded, onPicked) }
-        picker.show(childFragmentManager, "plan_date")
-    }
-
-    private fun showTimePicker(dateUtcMillis: Long, initial: Long, onPicked: (Long) -> Unit) {
-        val preset = Calendar.getInstance().apply { timeInMillis = initial }
-        val picker = MaterialTimePicker.Builder()
-            .setHour(preset[Calendar.HOUR_OF_DAY])
-            .setMinute(preset[Calendar.MINUTE])
-            .setInputMode(MaterialTimePicker.INPUT_MODE_CLOCK)
-            .setTimeFormat(
-                if (android.text.format.DateFormat.is24HourFormat(requireContext())) TimeFormat.CLOCK_24H
-                else TimeFormat.CLOCK_12H
-            )
-            .build()
-        picker.addOnPositiveButtonClickListener {
-            // The date picker returns a UTC midnight; interpret its fields in
-            // the device zone so the day matches what was shown.
-            val zoneDay = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-                timeInMillis = dateUtcMillis
-            }
-            val picked = Calendar.getInstance().apply {
-                set(Calendar.YEAR, zoneDay[Calendar.YEAR])
-                set(Calendar.MONTH, zoneDay[Calendar.MONTH])
-                set(Calendar.DAY_OF_MONTH, zoneDay[Calendar.DAY_OF_MONTH])
-                set(Calendar.HOUR_OF_DAY, picker.hour)
-                set(Calendar.MINUTE, picker.minute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-            onPicked(picked.timeInMillis)
-        }
-        picker.show(childFragmentManager, "plan_time")
-    }
-
-    /** UTC midnight for the device-zone day [millis] falls in. */
-    private fun dateUtcMidnight(millis: Long): Long {
-        val local = Calendar.getInstance().apply { timeInMillis = millis }
-        return Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-            clear()
-            set(local[Calendar.YEAR], local[Calendar.MONTH], local[Calendar.DAY_OF_MONTH])
+    /** Roll a picked time that already passed to the same time tomorrow. */
+    private fun atLeastNow(picked: Long): Long {
+        if (picked > System.currentTimeMillis()) return picked
+        return Calendar.getInstance().apply {
+            timeInMillis = picked
+            add(Calendar.DAY_OF_YEAR, 1)
         }.timeInMillis
     }
 

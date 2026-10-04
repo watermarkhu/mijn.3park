@@ -59,8 +59,13 @@
     <string name="clear">Wissen</string>
     <string name="ends_at">Eindigt om %1$s</string>
     <string name="ends_in">Eindigt over %1$s</string>
-    <string name="pick_end_date">Einddatum</string>
-    <string name="pick_end_time">Eindtijd</string>
+    <!-- Date & time picker -->
+    <string name="pick_date">Datum kiezen</string>
+    <string name="pick_time">Tijd kiezen</string>
+    <string name="date_value">Datum: %1$s</string>
+    <string name="time_value">Tijd: %1$s</string>
+    <string name="date_today">Vandaag</string>
+    <string name="date_tomorrow">Morgen</string>
     <string name="error_past_time">Eindtijd moet in de toekomst liggen</string>
 
     <!-- Settings -->

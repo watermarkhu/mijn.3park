@@ -64,8 +64,13 @@
     <string name="clear">Clear</string>
     <string name="ends_at">Ends at %1$s</string>
     <string name="ends_in">Ends in %1$s</string>
-    <string name="pick_end_date">End date</string>
-    <string name="pick_end_time">End time</string>
+    <!-- Date & time picker -->
+    <string name="pick_date">Pick date</string>
+    <string name="pick_time">Pick time</string>
+    <string name="date_value">Date: %1$s</string>
+    <string name="time_value">Time: %1$s</string>
+    <string name="date_today">Today</string>
+    <string name="date_tomorrow">Tomorrow</string>
     <string name="error_past_time">End time must be in the future</string>
 
     <!-- Settings -->
