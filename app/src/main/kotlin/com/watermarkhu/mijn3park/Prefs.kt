@@ -88,6 +88,11 @@ class Prefs(context: Context) {
         get() = prefs.getString("default_product_id", "") ?: ""
         set(value) = prefs.edit().putString("default_product_id", value).apply()
 
+    /** True once the first-run product picker has been shown. */
+    var productPickerShown: Boolean
+        get() = prefs.getBoolean("product_picker_shown", false)
+        set(value) = prefs.edit().putBoolean("product_picker_shown", value).apply()
+
     /** Locally saved plates, most recently used first. */
     var savedPlates: List<String>
         get() {

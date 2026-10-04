@@ -91,6 +91,52 @@
         </LinearLayout>
     </ScrollView>
 
+    <ScrollView
+        android:id="@+id/productPicker"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/onboarding_title"
+                android:textAppearance="?attr/textAppearanceHeadlineSmall"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/onboarding_message"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="?attr/colorOnSurfaceVariant"/>
+
+            <RadioGroup
+                android:id="@+id/productGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="vertical"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/productContinue"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="24dp"
+                android:text="@string/onboarding_continue"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                app:cornerRadius="28dp"/>
+        </LinearLayout>
+    </ScrollView>
+
     <include
         android:id="@+id/statusContainer"
         layout="@layout/view_status"
