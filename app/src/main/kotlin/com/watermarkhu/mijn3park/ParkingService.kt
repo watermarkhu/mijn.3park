@@ -39,7 +39,9 @@ class ParkingService : Service() {
         const val ACTION_STOP = "com.watermarkhu.mijn3park.action.STOP"
         const val ACTION_RENEW = "com.watermarkhu.mijn3park.action.RENEW"
         const val ACTION_AUTO_STOP = "com.watermarkhu.mijn3park.action.AUTO_STOP"
+        const val ACTION_ADOPT = "com.watermarkhu.mijn3park.action.ADOPT"
         const val EXTRA_PLATE = "plate"
+        const val EXTRA_START_AT = "start_at"
         const val EXTRA_END_AT = "end_at"
 
         const val CHANNEL_ID = NotificationChannels.ACTIVE
@@ -56,6 +58,25 @@ class ParkingService : Service() {
             val intent = Intent(context, ParkingService::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_PLATE, normalizePlate(plate))
+                .putExtra(EXTRA_END_AT, endAt)
+            if (Build.VERSION.SDK_INT >= 26) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+
+        /**
+         * Adopt a session the server already reports as active (started on the
+         * web, or auto-started from a planned session) without issuing a start
+         * action. [startAt]/[endAt] come from the server; 0 means unknown /
+         * open-ended.
+         */
+        fun adopt(context: Context, plate: String, startAt: Long, endAt: Long) {
+            val intent = Intent(context, ParkingService::class.java)
+                .setAction(ACTION_ADOPT)
+                .putExtra(EXTRA_PLATE, normalizePlate(plate))
+                .putExtra(EXTRA_START_AT, startAt)
                 .putExtra(EXTRA_END_AT, endAt)
             if (Build.VERSION.SDK_INT >= 26) {
                 context.startForegroundService(intent)
@@ -94,6 +115,12 @@ class ParkingService : Service() {
                 val endAt = intent.getLongExtra(EXTRA_END_AT, 0L)
                 goForeground(buildNotification(getString(R.string.notification_starting)))
                 startParking(plate, endAt)
+            }
+            ACTION_ADOPT -> {
+                val plate = intent.getStringExtra(EXTRA_PLATE).orEmpty()
+                val startAt = intent.getLongExtra(EXTRA_START_AT, 0L)
+                val endAt = intent.getLongExtra(EXTRA_END_AT, 0L)
+                adoptParking(plate, startAt, endAt)
             }
             ACTION_AUTO_STOP -> {
                 if ((prefs.isParking) && (prefs.activeEndAt > 0L)) {
@@ -160,6 +187,40 @@ class ParkingService : Service() {
                 onStateChanged?.invoke()
                 stopSelfCompletely()
             }
+        }
+    }
+
+    /**
+     * Take over a session the server already reports as active — started on the
+     * web, or auto-started from a planned session. Unlike [startParking] this
+     * issues no start action (the session already exists); it mirrors the
+     * server's window locally and schedules the matching end.
+     */
+    private fun adoptParking(plate: String, startAt: Long, endAt: Long) {
+        if (plate.isBlank()) {
+            stopSelfCompletely()
+            return
+        }
+        // Set state before foregrounding so the ongoing notification is accurate.
+        prefs.activePlate = plate
+        prefs.activeSince = startAt.takeIf { it > 0L } ?: System.currentTimeMillis()
+        prefs.activeEndAt = endAt.takeIf { it > System.currentTimeMillis() } ?: 0L
+        lastError = null
+        goForeground(activeNotification())
+        currentJob?.cancel()
+        currentJob = scope.launch {
+            refreshBalance()
+            goForeground(activeNotification())
+            if (prefs.activeEndAt > 0L) {
+                // The server session ends at a known time; do not renew past it.
+                cancelAlarm()
+                scheduleEndAlarm(prefs.activeEndAt)
+            } else {
+                cancelEndAlarm()
+                scheduleMidnightRenewal()
+            }
+            SessionScheduler.onActiveSessionChanged(this@ParkingService)
+            onStateChanged?.invoke()
         }
     }
 

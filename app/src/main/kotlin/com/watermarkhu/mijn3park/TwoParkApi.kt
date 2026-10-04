@@ -650,6 +650,10 @@ class TwoParkApi {
     suspend fun start(productId: String, location: String?, plate: String): String {
         if (mock) return mockBackend.start(productId, plate)
         val plateNorm = normalizePlate(plate)
+        // Already active (started on the web, or auto-started from a planned
+        // session): adopt the existing action instead of issuing a second start,
+        // which the server rejects as PRK-0005.
+        findActiveMember(productId, plateNorm)?.actionId?.let { return it }
         val now = System.currentTimeMillis()
         postStartAction(productId, location, plateNorm, now, Planning.endOfDay(now))
 
