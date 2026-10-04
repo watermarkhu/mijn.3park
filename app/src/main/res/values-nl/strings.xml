@@ -69,6 +69,11 @@
     <string name="settings_theme_system">Systeem</string>
     <string name="settings_theme_light">Licht</string>
     <string name="settings_theme_dark">Donker</string>
+    <string name="settings_notifications">Meldingen</string>
+    <string name="notification_permission_status_granted">Meldingen zijn ingeschakeld</string>
+    <string name="notification_permission_status_not_granted">Meldingen staan uit. Parkeerherinneringen en de melding voor actief parkeren worden niet getoond.</string>
+    <string name="notification_permission_open">Inschakelen</string>
+    <string name="notification_permission_missing">Meldingen staan uit — schakel ze in bij Instellingen voor parkeerupdates</string>
 
     <!-- History & transactions -->
     <string name="history_empty">Nog geen parkeeracties</string>

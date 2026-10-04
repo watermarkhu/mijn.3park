@@ -74,6 +74,11 @@
     <string name="settings_theme_system">System default</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="notification_permission_status_granted">Notifications are enabled</string>
+    <string name="notification_permission_status_not_granted">Notifications are turned off. Parking reminders and the active-parking notification won’t be shown.</string>
+    <string name="notification_permission_open">Turn on</string>
+    <string name="notification_permission_missing">Notifications are off — enable them in Settings to get parking updates</string>
 
     <!-- History & transactions -->
     <string name="history_empty">No parking actions yet</string>

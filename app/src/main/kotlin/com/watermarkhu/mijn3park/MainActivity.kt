@@ -7,6 +7,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
@@ -37,6 +38,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusRetry: MaterialButton
 
     private val vm: AppViewModel by viewModels()
+
+    /** Result is surfaced in Settings; here we only avoid prompting twice. */
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,12 +109,30 @@ class MainActivity : AppCompatActivity() {
 
         if (savedInstanceState == null) {
             bottomNav.selectedItemId = R.id.nav_park
+            setUpNotificationPermission()
         } else {
             toolbar.setTitle(titleFor(bottomNav.selectedItemId))
             applyHealth(vm.health.value)
         }
 
         vm.start()
+    }
+
+    /**
+     * On first set-up, ask for the notification permission once. If the user
+     * already answered (granted or not), only remind them with a toast instead
+     * of re-prompting; the Settings row shows the detailed state.
+     */
+    private fun setUpNotificationPermission() {
+        when {
+            NotificationPermission.shouldPrompt(this) -> {
+                NotificationPermission.markAsked(this)
+                notificationPermissionLauncher.launch(NotificationPermission.PERMISSION)
+            }
+            !NotificationPermission.granted(this) -> {
+                Toast.makeText(this, R.string.notification_permission_missing, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun titleFor(itemId: Int): Int = when (itemId) {
