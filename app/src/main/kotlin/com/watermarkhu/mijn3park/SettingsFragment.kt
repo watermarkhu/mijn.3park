@@ -151,10 +151,15 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
     /** The cadence plus what a reminder actually means. */
     private fun renderReminderSummary(pref: ListPreference, options: List<Pair<Int, Int>>) {
-        val label = options.firstOrNull { it.second == prefs.reminderIntervalMinutes }
-            ?.let { getString(it.first) }
-            ?: ""
-        pref.summary = getString(R.string.settings_reminders_summary, label)
+        val minutes = prefs.reminderIntervalMinutes
+        pref.summary = if (minutes <= 0) {
+            getString(R.string.settings_reminders_off_summary)
+        } else {
+            val label = options.firstOrNull { it.second == minutes }
+                ?.let { getString(it.first) }
+                ?: ""
+            getString(R.string.settings_reminders_summary, label)
+        }
     }
 
     /** Reminder choices and their interval in minutes (0 = off). */
