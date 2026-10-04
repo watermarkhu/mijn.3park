@@ -1,0 +1,15 @@
+mijn.3park is an unofficial Android client for mijn.2park.nl, a Dutch parking service.
+
+It lets you log in with your existing 2Park account, pick a product, and turn parking on or off for a license plate, with a persistent notification while parking is active.
+
+Features:
+- Log in with your mijn.2park.nl credentials. They are stored encrypted on your device.
+- Start and stop parking for any plate, with an ongoing notification.
+- Park until you stop: the app keeps parking active across midnight, or set an explicit end time.
+- Saved plates: use the plates saved on your 2Park account (with their names), or remember your own locally.
+- Permit (fixed-plate) products are shown read-only and always on.
+- Balance and top-up for prepaid products. Payment opens in your browser.
+- History and transactions: browse past parking actions and balance changes.
+- Settings: pick a default product and a light/dark/system theme.
+
+The app talks directly to mijn.2park.nl and sends no data to third parties. It is a solo project and is not affiliated with mijn.2park.nl.
