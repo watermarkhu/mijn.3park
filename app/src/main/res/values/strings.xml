@@ -16,6 +16,11 @@
     <string name="login">Log in</string>
     <string name="login_failed">Login failed: %1$s</string>
 
+    <!-- First-run product selection -->
+    <string name="onboarding_title">Choose your favorite product</string>
+    <string name="onboarding_message">Pick the product you use most. You can change the active and favorite product later in Settings.</string>
+    <string name="onboarding_continue">Continue</string>
+
     <!-- Main -->
     <string name="product">Product</string>
     <string name="license_plate">License plate</string>

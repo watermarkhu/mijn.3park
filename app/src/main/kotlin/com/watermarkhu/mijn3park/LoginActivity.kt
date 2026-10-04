@@ -3,6 +3,7 @@ package com.watermarkhu.mijn3park
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -12,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.google.android.material.progressindicator.LinearProgressIndicator
+import com.google.android.material.radiobutton.MaterialRadioButton
 import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.launch
 
@@ -24,6 +26,10 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var passwordInput: TextInputEditText
     private lateinit var loginButton: MaterialButton
     private lateinit var progress: LinearProgressIndicator
+
+    private lateinit var productPicker: View
+    private lateinit var productGroup: RadioGroup
+    private lateinit var productContinue: MaterialButton
 
     private lateinit var statusContainer: View
     private lateinit var statusIcon: View
@@ -44,6 +50,11 @@ class LoginActivity : AppCompatActivity() {
         passwordInput = findViewById(R.id.passwordInput)
         loginButton = findViewById(R.id.loginButton)
         progress = findViewById(R.id.loginProgress)
+
+        productPicker = findViewById(R.id.productPicker)
+        productGroup = findViewById(R.id.productGroup)
+        productContinue = findViewById(R.id.productContinue)
+        productContinue.setOnClickListener { confirmProductSelection() }
 
         statusContainer = findViewById(R.id.statusContainer)
         statusIcon = findViewById(R.id.statusIcon)
@@ -73,8 +84,18 @@ class LoginActivity : AppCompatActivity() {
                 prefs.email = email
                 prefs.password = password
 
-                startActivity(Intent(this@LoginActivity, MainActivity::class.java))
-                finish()
+                // First run with more than one product: let the user pick a
+                // favorite before entering the app. Shown only once.
+                val products = try {
+                    TwoParkApi.instance.getProducts()
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                if (products.size > 1 && !prefs.productPickerShown) {
+                    showProductPicker(products)
+                } else {
+                    goToMain()
+                }
             } catch (e: AuthFailedException) {
                 showFormError(getString(R.string.login_failed, e.message ?: e.toString()))
             } catch (e: ApiUnavailableException) {
@@ -94,6 +115,43 @@ class LoginActivity : AppCompatActivity() {
                 progress.visibility = View.GONE
             }
         }
+    }
+
+    /** First-run: pick a favorite product when the account has several. */
+    private fun showProductPicker(products: List<Product>) {
+        prefs.productPickerShown = true
+        loginForm.isVisible = false
+        statusContainer.isVisible = false
+        productPicker.isVisible = true
+
+        productGroup.removeAllViews()
+        products.forEachIndexed { index, product ->
+            val radio = MaterialRadioButton(this).apply {
+                id = View.generateViewId()
+                text = product.displayName
+                tag = product.id
+            }
+            if (product.id == prefs.defaultProductId ||
+                (prefs.defaultProductId.isBlank() && index == 0)
+            ) {
+                radio.isChecked = true
+            }
+            productGroup.addView(radio)
+        }
+    }
+
+    private fun confirmProductSelection() {
+        val radio = productGroup.findViewById<MaterialRadioButton>(productGroup.checkedRadioButtonId)
+        (radio?.tag as? String)?.takeIf { it.isNotBlank() }?.let {
+            prefs.defaultProductId = it
+            prefs.productId = it
+        }
+        goToMain()
+    }
+
+    private fun goToMain() {
+        startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+        finish()
     }
 
     private fun showFormError(message: String) {
