@@ -4,5 +4,13 @@
     <style name="Theme.App" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
         <!-- Dark status-bar icons on the light theme, so they stay visible. -->
         <item name="android:windowLightStatusBar">true</item>
+        <!-- Required by the PreferenceFragmentCompat settings screen. -->
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
+    </style>
+
+    <!-- Optional Material 3 Expressive look, toggled in Settings. -->
+    <style name="Theme.App.Expressive" parent="Theme.Material3Expressive.DynamicColors.DayNight.NoActionBar">
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
     </style>
 </resources>
