@@ -34,28 +34,51 @@ object ReminderMath {
 }
 
 /**
- * Pure pruning of the persisted planned-session store, kept free of Android
- * types so it can be unit-tested. A stored session stays valid when it is either
- * still scheduled on the server ([merged]) or currently running and backed by an
- * active server action ([activePlates]); everything ended or dangling is
- * dropped.
+ * Pure recomputation of the persisted planned-session store, kept free of Android
+ * types so it can be unit-tested.
+ *
+ * The store is rebuilt from authoritative server state: the scheduled sessions
+ * ([merged]) plus any previously stored session that is currently running and
+ * still backed by an active server action. A running session is clamped to that
+ * action's end so a canceled future leg is not revived, and contiguous legs are
+ * merged so a multi-day plan stays a single session.
  */
 object SessionPrune {
+
+    /** Same join tolerance [Planning] uses between same-day legs. */
+    private const val JOIN_TOLERANCE_MS = Planning.JOIN_TOLERANCE_MS
 
     fun valid(
         previous: List<PlannedSession>,
         merged: List<PlannedSession>,
-        activePlates: Set<String>,
+        activeEnds: Map<String, Long>,
         now: Long,
     ): List<PlannedSession> {
-        // Carry a session over only while it is actually running on the server:
-        // an auto-started plan disappears from the scheduled list but shows up
-        // as an active member, whereas an externally cancelled one shows up as
-        // neither and is dropped.
-        val carryOver = previous.filter {
-            it.startAt <= now && it.endAt > now && it.plate in activePlates
+        val running = previous.mapNotNull { prev ->
+            if (prev.startAt > now || prev.endAt <= now) return@mapNotNull null
+            // Only keep an in-progress session while the server still reports an
+            // active action for its plate; clamp the end to that action so a
+            // canceled future leg does not linger.
+            val activeEnd = activeEnds[prev.plate]?.takeIf { it > 0L } ?: return@mapNotNull null
+            prev.copy(endAt = minOf(prev.endAt, activeEnd))
         }
-        return (merged + carryOver).filter { it.endAt > now }.distinct()
+        return merge(merged + running).filter { it.endAt > now }
+    }
+
+    /** Collapse contiguous same-plate sessions (a running leg plus later legs). */
+    private fun merge(sessions: List<PlannedSession>): List<PlannedSession> {
+        val out = mutableListOf<PlannedSession>()
+        for (session in sessions.sortedBy { it.startAt }) {
+            val last = out.lastOrNull()
+            if (last != null && last.plate == session.plate &&
+                session.startAt <= last.endAt + JOIN_TOLERANCE_MS
+            ) {
+                out[out.lastIndex] = last.copy(endAt = maxOf(last.endAt, session.endAt))
+            } else {
+                out.add(session)
+            }
+        }
+        return out
     }
 }
 
@@ -85,14 +108,14 @@ object SessionScheduler {
         context: Context,
         productId: String,
         merged: List<PlannedSession>,
-        activePlates: Set<String>,
+        activeEnds: Map<String, Long>,
     ) {
         val app = context.applicationContext
         val prefs = Prefs(app)
         val now = System.currentTimeMillis()
         val previous = prefs.plannedSessions(productId)
         cancelPlannedAlarms(app, previous)
-        val sessions = SessionPrune.valid(previous, merged, activePlates, now)
+        val sessions = SessionPrune.valid(previous, merged, activeEnds, now)
         prefs.setPlannedSessions(productId, sessions)
         schedulePlannedAlarms(app, sessions, now)
         scheduleReminders(app, prefs)

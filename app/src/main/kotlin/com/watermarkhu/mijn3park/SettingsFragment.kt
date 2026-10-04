@@ -155,10 +155,12 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
     /** Re-request on API 33+, or deep-link to the app's notification settings. */
     private fun onNotificationButton() {
-        val canAskAgain = Build.VERSION.SDK_INT >= 33 &&
-            requireActivity()
-                .shouldShowRequestPermissionRationale(NotificationPermission.PERMISSION)
-        if (canAskAgain) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            // Always attempt the in-app request: a dismissed dialog leaves the
+            // permission state unchanged and shouldShowRequestPermissionRationale
+            // stays false, so gating on it would wrongly open Settings instead.
+            // A second denial makes the launcher return immediately, and the
+            // callback falls back to the system settings screen.
             notificationPermissionLauncher.launch(NotificationPermission.PERMISSION)
         } else {
             openNotificationSettings()

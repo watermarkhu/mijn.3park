@@ -14,12 +14,37 @@ class SessionAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val plate = intent.getStringExtra(EXTRA_PLATE).orEmpty()
         when (intent.action) {
-            ACTION_SESSION_STARTED ->
-                SessionScheduler.onSessionStarted(context, plate, intent.getLongExtra(EXTRA_START, 0L))
-            ACTION_SESSION_ENDED ->
-                SessionScheduler.onSessionEnded(context, plate)
+            ACTION_SESSION_STARTED -> {
+                if (matchesPlannedSession(context, plate, intent)) {
+                    SessionScheduler.onSessionStarted(
+                        context,
+                        plate,
+                        intent.getLongExtra(EXTRA_START, 0L),
+                    )
+                }
+            }
+            ACTION_SESSION_ENDED -> {
+                if (matchesPlannedSession(context, plate, intent)) {
+                    SessionScheduler.onSessionEnded(context, plate)
+                }
+            }
             ACTION_REMINDER ->
                 SessionScheduler.onReminder(context)
+        }
+    }
+
+    /**
+     * True while the full (plate, start, end) identity is still in the planned
+     * store. Guards against a broadcast delivered after its session was removed
+     * (e.g. canceled externally) but before the matching alarm was cancelled,
+     * which would otherwise post a false start/ended event. Reminder ticks are
+     * left alone: [SessionScheduler.onReminder] re-checks the session itself.
+     */
+    private fun matchesPlannedSession(context: Context, plate: String, intent: Intent): Boolean {
+        val startAt = intent.getLongExtra(EXTRA_START, 0L)
+        val endAt = intent.getLongExtra(EXTRA_END, 0L)
+        return Prefs(context.applicationContext).allPlannedSessions().any {
+            it.plate == plate && it.startAt == startAt && it.endAt == endAt
         }
     }
 

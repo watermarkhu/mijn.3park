@@ -235,6 +235,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(details = details, members = details.members, selectedProduct = selectedProduct())
                 }
                 syncPlannedSessions(productId, details)
+                syncParkingSession(details)
             } catch (_: AuthFailedException) {
                 _sessionExpired.tryEmit(Unit)
             } catch (_: SessionExpiredException) {
@@ -262,7 +263,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (planned != null) {
                 SessionScheduler.notifySessionStarted(getApplication(), planned.plate, planned.startAt)
             }
-            ParkingService.start(getApplication(), activeMember.plate)
+            ParkingService.start(getApplication(), activeMember.plate, planned?.endAt ?: 0L)
             SessionScheduler.onActiveSessionChanged(getApplication())
         } else if (activeMember == null && prefs.isParking) {
             prefs.clearActiveParking()
@@ -273,15 +274,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Persist the merged planned sessions for [productId] and reschedule them. */
     private fun syncPlannedSessions(productId: String, details: ProductDetails) {
-        val activePlates = details.members
+        val activeEnds = details.members
             .filter { it.active && it.actionId != null }
-            .map { it.plate }
-            .toSet()
+            .mapNotNull { member ->
+                member.timeEnd?.let { Planning.parseTimestamp(it) }?.let { member.plate to it }
+            }
+            .toMap()
         SessionScheduler.onPlannedSessionsUpdated(
             getApplication(),
             productId,
             Planning.mergeToSessions(details.plannedActions),
-            activePlates,
+            activeEnds,
         )
     }
 
