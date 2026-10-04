@@ -2,7 +2,7 @@
 
 [English](./README.md)
 
-[![](https://raw.githubusercontent.com/pioug/google-play-badges/refs/heads/main/svg/nl.svg)](https://play.google.com/apps/internaltest/4701452654393961893)
+<img src="https://raw.githubusercontent.com/pioug/google-play-badges/refs/heads/main/svg/nl.svg" height="40em" href="https://play.google.com/apps/internaltest/4701452654393961893">
 
 <img src="store/icon.svg" alt="mijn.3park app-icoon" width="96" align="right"/>
 
