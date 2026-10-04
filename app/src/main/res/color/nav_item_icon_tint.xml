@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bottom-nav icon tint. The disabled state is deliberately much fainter than
+  Material's default disabled emphasis (0.38) so a disabled "Planned" tab on a
+  permit product reads as unavailable, not merely unselected.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:state_enabled="false"
+        android:alpha="0.24"
+        android:color="?attr/colorOnSurface"/>
+    <item
+        android:state_pressed="true"
+        android:state_checked="true"
+        android:color="?attr/colorOnSecondaryContainer"/>
+    <item
+        android:state_checked="true"
+        android:color="?attr/colorOnSecondaryContainer"/>
+    <item
+        android:state_pressed="true"
+        android:color="?attr/colorOnSurface"/>
+    <item
+        android:color="?attr/colorOnSurfaceVariant"/>
+</selector>

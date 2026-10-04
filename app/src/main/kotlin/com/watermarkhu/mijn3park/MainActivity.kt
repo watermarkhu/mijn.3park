@@ -10,7 +10,9 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.isVisible
+import androidx.core.view.MenuItemCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -60,6 +62,11 @@ class MainActivity : AppCompatActivity() {
         navHost = findViewById(R.id.navHost)
         editorHost = findViewById(R.id.editorHost)
 
+        // Explicit tint lists: Material's defaults barely dim a disabled item,
+        // and the active-indicator pill stays visible regardless of enabled
+        // state, so a disabled tab must be reset to its unchecked form.
+        applyPlannedAvailability(isPermit = false)
+
         // The planned-session editor is a full-screen overlay; back closes it.
         editorBackCallback = onBackPressedDispatcher.addCallback(this) { closePlanEditor() }
         editorBackCallback.isEnabled = false
@@ -102,7 +109,7 @@ class MainActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 vm.state.collect { state ->
                     val permit = state.selectedProduct?.hasFixedPlate == true || state.details?.fixedPlate != null
-                    bottomNav.menu.findItem(R.id.nav_planned)?.isEnabled = !permit
+                    applyPlannedAvailability(permit)
                 }
             }
         }
@@ -116,6 +123,41 @@ class MainActivity : AppCompatActivity() {
         }
 
         vm.start()
+    }
+
+    /**
+     * Grey out and disable the Planned tab for permit products, and describe
+     * why to screen readers. Material keeps the active-indicator pill visible on
+     * a checked item even when disabled, so a disabled Planned tab is also
+     * un-checked and the bar is forced off it; the explicit tints then make it
+     * read as unavailable rather than merely unselected.
+     */
+    private fun applyPlannedAvailability(isPermit: Boolean) {
+        val item = bottomNav.menu.findItem(R.id.nav_planned) ?: return
+        item.isEnabled = !isPermit
+        if (isPermit) {
+            // A disabled item must not stay selected (or keep its pill/tint).
+            if (bottomNav.selectedItemId == R.id.nav_planned) {
+                bottomNav.selectedItemId = R.id.nav_park
+            }
+            item.isChecked = false
+        }
+        // The menu item's accessibility description explains, to screen
+        // readers, why the tab is unavailable. MenuItemCompat handles the
+        // API < 26 path (plain MenuItem has no content description there).
+        MenuItemCompat.setContentDescription(
+            item,
+            if (isPermit) getString(R.string.planned_permit_unavailable) else null,
+        )
+        // Menu changes don't refresh already-inflated item views: toggling the
+        // public tints makes Material re-propagate them to every item so the
+        // newly disabled item picks up the faint colour.
+        bottomNav.itemIconTintList = null
+        bottomNav.itemTextColor = null
+        bottomNav.itemIconTintList =
+            AppCompatResources.getColorStateList(this, R.color.nav_item_icon_tint)
+        bottomNav.itemTextColor =
+            AppCompatResources.getColorStateList(this, R.color.nav_item_text_color)
     }
 
     /**
