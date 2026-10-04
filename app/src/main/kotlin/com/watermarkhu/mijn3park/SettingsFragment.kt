@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.net.toUri
@@ -58,10 +59,16 @@ class SettingsFragment : PreferenceFragmentCompat() {
      */
     private fun boundPreferenceList(root: View) {
         val list = findRecyclerView(root) ?: return
-        list.layoutParams = ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT,
-        )
+        // Only bound the height; keep the concrete (FrameLayout) params type.
+        val params = list.layoutParams
+        if (params != null) {
+            params.height = ViewGroup.LayoutParams.MATCH_PARENT
+        } else {
+            list.layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+        }
         list.clipToPadding = false
         ViewCompat.setOnApplyWindowInsetsListener(list) { v, insets ->
             v.updatePadding(bottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom)
