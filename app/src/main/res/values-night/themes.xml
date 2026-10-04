@@ -5,9 +5,4 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
     </style>
-
-    <style name="Theme.App.Expressive" parent="Theme.Material3Expressive.DynamicColors.DayNight.NoActionBar">
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
-    </style>
 </resources>

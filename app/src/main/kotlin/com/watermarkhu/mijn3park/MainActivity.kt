@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        setTheme(ThemePrefs.themeRes(this))
+        ThemePrefs.applyTheme(this)
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
 

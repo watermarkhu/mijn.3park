@@ -8,9 +8,7 @@
         <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
     </style>
 
-    <!-- Optional Material 3 Expressive look, toggled in Settings. -->
-    <style name="Theme.App.Expressive" parent="Theme.Material3Expressive.DynamicColors.DayNight.NoActionBar">
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
-    </style>
+    <!-- Material 3 Expressive dynamic colour palette, applied on top of Theme.App
+         when enabled in Settings. Colours only; shapes and motion are unchanged. -->
+    <style name="ThemeOverlay.App.Expressive" parent="ThemeOverlay.Material3Expressive.DynamicColors.DayNight"/>
 </resources>

@@ -1,5 +1,6 @@
 package com.watermarkhu.mijn3park
 
+import android.app.Activity
 import android.content.Context
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.edit
@@ -39,8 +40,14 @@ class ThemePrefs(context: Context) {
             else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
         }
 
-        /** Activity theme matching the saved appearance preferences. */
-        fun themeRes(context: Context): Int =
-            if (ThemePrefs(context).expressive) R.style.Theme_App_Expressive else R.style.Theme_App
+        /** Apply the appearance theme to an activity before its onCreate. */
+        fun applyTheme(activity: Activity) {
+            activity.setTheme(R.style.Theme_App)
+            // Expressive is a colour overlay on top of the base theme, so shapes
+            // and motion stay standard Material 3.
+            if (ThemePrefs(activity).expressive) {
+                activity.theme.applyStyle(R.style.ThemeOverlay_App_Expressive, true)
+            }
+        }
     }
 }
