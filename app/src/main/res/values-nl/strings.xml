@@ -54,7 +54,7 @@
     <string name="health_unreliable_message">2Park gaf onverwachte gegevens terug. Parkeren is uitgeschakeld om fouten te voorkomen.</string>
 
     <!-- Affiliation disclaimer -->
-    <string name="disclaimer">mijn.3park is een onofficiële app en is niet verbonden aan mijn.2park.nl. Het is een soloproject, gemaakt omdat de officiële interface van mijn.2park.nl onhandig is. Er worden geen gegevens naar derden gestuurd — de app verbindt rechtstreeks met 2Park en je gegevens blijven alleen op dit toestel.</string>
+    <string name="disclaimer">mijn.3park is een onofficiële app en is niet verbonden aan mijn.2park.nl. Het is een soloproject, gemaakt omdat de officiële interface van mijn.2park.nl onhandig is. Er worden geen gegevens naar derden gestuurd. De app verbindt rechtstreeks met 2Park en je gegevens blijven alleen op dit toestel.</string>
     <string name="set_end_time">Eindtijd instellen (optioneel)</string>
     <string name="clear">Wissen</string>
     <string name="ends_at">Eindigt om %1$s</string>
