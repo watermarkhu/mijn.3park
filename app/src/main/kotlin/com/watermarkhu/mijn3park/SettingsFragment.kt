@@ -6,10 +6,14 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.net.toUri
 import androidx.core.os.LocaleListCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -18,6 +22,7 @@ import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SwitchPreferenceCompat
+import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.launch
 
 /**
@@ -36,6 +41,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        boundPreferenceList(view)
         setUpAccount()
         setUpParking()
         setUpReminders()
@@ -43,6 +49,35 @@ class SettingsFragment : PreferenceFragmentCompat() {
         setUpAppearance()
         setUpLanguage()
         setUpAbout()
+    }
+
+    /**
+     * The preference RecyclerView is created by the library and reused while the
+     * Settings tab is shown. Give it a bounded height and keep its last item
+     * clear of the navigation bar, so the whole list stays scrollable.
+     */
+    private fun boundPreferenceList(root: View) {
+        val list = findRecyclerView(root) ?: return
+        list.layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+        )
+        list.clipToPadding = false
+        ViewCompat.setOnApplyWindowInsetsListener(list) { v, insets ->
+            v.updatePadding(bottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(list)
+    }
+
+    private fun findRecyclerView(view: View): RecyclerView? {
+        if (view is RecyclerView) return view
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                findRecyclerView(view.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
     }
 
     override fun onResume() {
@@ -54,6 +89,10 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
     private fun setUpAccount() {
         findPreference<Preference>("email")?.summary = prefs.email
+        findPreference<Preference>("logout")?.setOnPreferenceClickListener {
+            (activity as? MainActivity)?.performLogout()
+            true
+        }
     }
 
     private fun setUpParking() {
@@ -228,10 +267,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
         findPreference<Preference>("version")?.summary = appVersion()
         findPreference<Preference>("github")?.setOnPreferenceClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/watermarkhu/mijn.3park".toUri()))
-            true
-        }
-        findPreference<Preference>("logout")?.setOnPreferenceClickListener {
-            (activity as? MainActivity)?.performLogout()
             true
         }
     }

@@ -5,6 +5,9 @@
         <Preference
             app:key="email"
             app:selectable="false"/>
+        <Preference
+            app:key="logout"
+            app:title="@string/menu_logout"/>
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/settings_parking">
@@ -58,8 +61,5 @@
         <Preference
             app:key="github"
             app:title="@string/settings_github"/>
-        <Preference
-            app:key="logout"
-            app:title="@string/menu_logout"/>
     </PreferenceCategory>
 </PreferenceScreen>
