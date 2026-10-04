@@ -1,5 +1,9 @@
 # mijn.3park
 
+[English](./README.md)
+
+[![](https://raw.githubusercontent.com/pioug/google-play-badges/refs/heads/main/svg/nl.svg)](https://play.google.com/apps/internaltest/4701452654393961893)
+
 <img src="store/icon.svg" alt="mijn.3park app-icoon" width="96" align="right"/>
 
 Een onofficiële Android-client voor **[mijn.2park.nl](https://mijn.2park.nl)**,
