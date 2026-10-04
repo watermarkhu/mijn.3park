@@ -86,6 +86,7 @@
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_expressive">Material 3 Expressive</string>
+    <string name="settings_expressive_summary">Uses Google’s newer Material 3 Expressive design: rounder shapes, bolder type and springier motion.</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_system">System default</string>
     <string name="settings_language_en">English</string>

@@ -39,7 +39,8 @@
             app:useSimpleSummaryProvider="true"/>
         <SwitchPreferenceCompat
             app:key="expressive"
-            app:title="@string/settings_expressive"/>
+            app:title="@string/settings_expressive"
+            app:summary="@string/settings_expressive_summary"/>
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/settings_language">

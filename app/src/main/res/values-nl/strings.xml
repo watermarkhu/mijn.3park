@@ -81,6 +81,7 @@
     <string name="settings_theme_light">Licht</string>
     <string name="settings_theme_dark">Donker</string>
     <string name="settings_expressive">Material 3 Expressive</string>
+    <string name="settings_expressive_summary">Gebruikt het nieuwere Material 3 Expressive-ontwerp: rondere vormen, vettere typografie en speelsere bewegingen.</string>
     <string name="settings_language">Taal</string>
     <string name="settings_language_system">Systeemstandaard</string>
     <string name="settings_language_en">Engels</string>
