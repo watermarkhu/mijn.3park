@@ -141,4 +141,11 @@
     <string name="planned_saved">Planned session saved</string>
     <string name="planned_changed">Planned session changed</string>
     <string name="planned_removed">Planned session removed</string>
+
+    <!-- API failure reminder dialog -->
+    <string name="health_alert_title">2Park can\'t be checked</string>
+    <string name="health_alert_message">The app can\'t reach mijn.2park.nl right now, so it cannot guarantee the correct status of your parking. Check mijn.2park.nl for your current and planned sessions.</string>
+    <string name="health_alert_ok">Ok</string>
+    <string name="health_alert_open_site">Open mijn.2park.nl</string>
+    <string name="health_alert_open_failed">Could not open a browser</string>
 </resources>

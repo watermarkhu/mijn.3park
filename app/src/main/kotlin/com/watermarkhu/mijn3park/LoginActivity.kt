@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
@@ -30,6 +31,8 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var statusTitle: TextView
     private lateinit var statusMessage: TextView
     private lateinit var statusRetry: MaterialButton
+
+    private var healthAlertDialog: AlertDialog? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,5 +111,11 @@ class LoginActivity : AppCompatActivity() {
         statusMessage.setText(messageRes)
         statusMessage.isVisible = true
         statusRetry.isVisible = true
+
+        // Same warning as the main screen. There is no session yet, so Ok just
+        // dismisses; the other button opens mijn.2park.nl.
+        if (healthAlertDialog?.isShowing != true) {
+            healthAlertDialog = showHealthAlertDialog(this) { }
+        }
     }
 }

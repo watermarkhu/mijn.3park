@@ -57,8 +57,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _refreshDone = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val refreshDone: SharedFlow<Unit> = _refreshDone.asSharedFlow()
 
+    /**
+     * Fires once when a health check transitions into a failure state, so the
+     * host activity can warn the user and point them at mijn.2park.nl. It is
+     * not re-emitted while consecutive checks keep failing ([healthAlertShown]).
+     */
+    private val _healthAlert = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val healthAlert: SharedFlow<Unit> = _healthAlert.asSharedFlow()
+
     private var appliedDefaultProduct = false
     private var checksStarted = false
+    private var healthAlertShown = false
 
     /** The selected product, derived from the stored product id. */
     private fun selectedProduct(products: List<Product> = _state.value.products): Product? =
@@ -129,6 +138,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // Sync local state with the server (parking started/stopped elsewhere).
                 syncParkingSession(details)
 
+                healthAlertShown = false
                 _health.value = HealthState.OK
             } catch (_: AuthFailedException) {
                 _sessionExpired.tryEmit(Unit)
@@ -136,13 +146,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _sessionExpired.tryEmit(Unit)
             } catch (_: ApiUnavailableException) {
                 _health.value = HealthState.UNAVAILABLE
+                maybeEmitHealthAlert()
             } catch (_: ApiIncompatibleException) {
                 _health.value = HealthState.UNRELIABLE
+                maybeEmitHealthAlert()
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 // Anything unexpected is treated as an unreliable API.
                 _health.value = HealthState.UNRELIABLE
+                maybeEmitHealthAlert()
             } finally {
                 _refreshDone.tryEmit(Unit)
             }
@@ -255,6 +268,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Emit [healthAlert] at most once per failure episode. A later successful
+     * check (or logout) resets the guard so a new episode can warn again.
+     */
+    private fun maybeEmitHealthAlert() {
+        if (healthAlertShown) return
+        healthAlertShown = true
+        _healthAlert.tryEmit(Unit)
+    }
+
     /** Full wipe shared by manual logout and expired-session auto-logout. */
     fun logout() {
         SessionScheduler.cancelAll(getApplication())
@@ -263,6 +286,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.clearAll()
         appliedDefaultProduct = false
         checksStarted = false
+        healthAlertShown = false
         _health.value = HealthState.CHECKING
     }
 }

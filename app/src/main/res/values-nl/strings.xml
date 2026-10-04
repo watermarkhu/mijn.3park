@@ -136,4 +136,11 @@
     <string name="planned_saved">Geplande sessie opgeslagen</string>
     <string name="planned_changed">Geplande sessie gewijzigd</string>
     <string name="planned_removed">Geplande sessie verwijderd</string>
+
+    <!-- API failure reminder dialog -->
+    <string name="health_alert_title">2Park kan niet worden gecontroleerd</string>
+    <string name="health_alert_message">De app kan mijn.2park.nl momenteel niet bereiken en kan de juiste status van je parkeren niet garanderen. Controleer mijn.2park.nl voor je huidige en geplande sessies.</string>
+    <string name="health_alert_ok">Oké</string>
+    <string name="health_alert_open_site">Mijn.2park.nl openen</string>
+    <string name="health_alert_open_failed">Kon geen browser openen</string>
 </resources>

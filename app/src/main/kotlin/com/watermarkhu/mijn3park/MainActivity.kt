@@ -9,6 +9,7 @@ import androidx.activity.addCallback
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.isVisible
@@ -38,6 +39,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusTitle: TextView
     private lateinit var statusMessage: TextView
     private lateinit var statusRetry: MaterialButton
+
+    private var healthAlertDialog: AlertDialog? = null
 
     private val vm: AppViewModel by viewModels()
 
@@ -95,6 +98,11 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, R.string.session_expired, Toast.LENGTH_LONG).show()
                     performLogout()
                 }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                vm.healthAlert.collect { showHealthAlert() }
             }
         }
         lifecycleScope.launch {
@@ -289,6 +297,16 @@ class MainActivity : AppCompatActivity() {
         toolbar.setTitle(titleFor(bottomNav.selectedItemId))
         editorBackCallback.isEnabled = false
         if (restoreHealth) applyHealth(vm.health.value)
+    }
+
+    /**
+     * Warn that 2Park cannot be checked: Ok logs the user out, the other
+     * button opens mijn.2park.nl. Shown on top of the failure screen, once per
+     * failure episode (guarded in [AppViewModel] and by [healthAlertDialog]).
+     */
+    private fun showHealthAlert() {
+        if (healthAlertDialog?.isShowing == true) return
+        healthAlertDialog = showHealthAlertDialog(this) { performLogout() }
     }
 
     /** Clear session, stop the service and return to Login. */
