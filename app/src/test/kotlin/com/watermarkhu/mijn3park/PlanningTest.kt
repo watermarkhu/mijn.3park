@@ -59,6 +59,25 @@ class PlanningTest {
     }
 
     @Test
+    fun mergeToSessions_joinsMidnightLegsIntoOneAbsoluteSession() {
+        val night1 = planned("AB12CD", "28-09-2026 22:00:00", "28-09-2026 23:59:59")
+        val night2 = planned("AB12CD", "29-09-2026 00:00:00", "29-09-2026 06:00:00")
+        val sessions = Planning.mergeToSessions(listOf(night1, night2))
+        assertEquals(1, sessions.size)
+        assertEquals(
+            PlannedSession("AB12CD", timestamp(2026, 9, 28, 22, 0), timestamp(2026, 9, 29, 6, 0)),
+            sessions[0],
+        )
+    }
+
+    @Test
+    fun mergeToSessions_dropsInvalidOrEmptyRanges() {
+        val empty = planned("AB12CD", "28-09-2026 10:00:00", "28-09-2026 10:00:00")
+        assertTrue(Planning.mergeToSessions(listOf(empty)).isEmpty())
+        assertTrue(Planning.mergeToSessions(emptyList()).isEmpty())
+    }
+
+    @Test
     fun overlaps_detectsIntersectionButNotTouchingEdges() {
         val existing = listOf(planned("AB12CD", "28-09-2026 10:00:00", "28-09-2026 12:00:00"))
         assertTrue(

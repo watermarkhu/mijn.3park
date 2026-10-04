@@ -57,11 +57,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _refreshDone = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val refreshDone: SharedFlow<Unit> = _refreshDone.asSharedFlow()
 
+    /**
+     * Fires once when a health check transitions into a failure state, so the
+     * host activity can warn the user and point them at mijn.2park.nl. It is
+     * not re-emitted while consecutive checks keep failing ([healthAlertShown]).
+     */
+    private val _healthAlert = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val healthAlert: SharedFlow<Unit> = _healthAlert.asSharedFlow()
+
     private var appliedDefaultProduct = false
     private var checksStarted = false
-
-    /** Plates observed as having SCHEDULED (planned) actions in this process. */
-    private val observedPlannedPlates = mutableSetOf<String>()
+    private var healthAlertShown = false
 
     /** The selected product, derived from the stored product id. */
     private fun selectedProduct(products: List<Product> = _state.value.products): Product? =
@@ -124,9 +130,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     _state.update { it.copy(balance = "") }
                 }
 
+                // Persist and schedule the freshly read planned sessions before
+                // syncing the running session, so a server-side auto-start can
+                // match (and dedupe) its start notification.
+                syncPlannedSessions(product.id, details)
+
                 // Sync local state with the server (parking started/stopped elsewhere).
                 syncParkingSession(details)
 
+                healthAlertShown = false
                 _health.value = HealthState.OK
             } catch (_: AuthFailedException) {
                 _sessionExpired.tryEmit(Unit)
@@ -134,13 +146,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _sessionExpired.tryEmit(Unit)
             } catch (_: ApiUnavailableException) {
                 _health.value = HealthState.UNAVAILABLE
+                maybeEmitHealthAlert()
             } catch (_: ApiIncompatibleException) {
                 _health.value = HealthState.UNRELIABLE
+                maybeEmitHealthAlert()
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 // Anything unexpected is treated as an unreliable API.
                 _health.value = HealthState.UNRELIABLE
+                maybeEmitHealthAlert()
             } finally {
                 _refreshDone.tryEmit(Unit)
             }
@@ -184,6 +199,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     prefs.lastBalance = balance.formatted
                     _state.update { it.copy(balance = balance.formatted) }
                 }
+                syncPlannedSessions(prefs.productId, details)
                 syncParkingSession(details)
             } catch (_: AuthFailedException) {
                 _sessionExpired.tryEmit(Unit)
@@ -201,25 +217,75 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Refresh the planned-session store for the selected product without
+     * touching health or balance. Called when the app returns to the foreground
+     * and when the Planned tab opens, so externally added or removed sessions
+     * (and their alarms) converge. Failures leave the last known store in place.
+     */
+    fun refreshPlannedSessions() {
+        val productId = prefs.productId
+        if (productId.isBlank()) return
+        viewModelScope.launch {
+            try {
+                ensureLoggedIn()
+                val details = api.getDetails(productId)
+                if (productId != prefs.productId) return@launch
+                _state.update {
+                    it.copy(details = details, members = details.members, selectedProduct = selectedProduct())
+                }
+                syncPlannedSessions(productId, details)
+                syncParkingSession(details)
+            } catch (_: AuthFailedException) {
+                _sessionExpired.tryEmit(Unit)
+            } catch (_: SessionExpiredException) {
+                _sessionExpired.tryEmit(Unit)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Keep the last known store; the next sync will retry.
+            }
+        }
+    }
+
     /** Align the local parking session with what the server reports. */
     private fun syncParkingSession(details: ProductDetails) {
-        // Remember which plates are currently planned, so a later server-side
-        // auto-start can be reported as a planned session starting.
-        observedPlannedPlates += details.plannedActions.map { it.plate }
         val activeMember = details.members.firstOrNull { it.active && it.actionId != null }
         if (activeMember != null && !prefs.isParking) {
-            val startedFromPlan = observedPlannedPlates.remove(activeMember.plate)
             prefs.activePlate = activeMember.plate
             prefs.activeSince = System.currentTimeMillis()
-            ParkingService.start(
-                getApplication(),
-                activeMember.plate,
-                notifyPlannedStart = startedFromPlan,
-            )
+            // A planned session the server auto-started may already have been
+            // announced by its start alarm; notifySessionStarted dedupes them.
+            val now = prefs.activeSince
+            val planned = prefs.allPlannedSessions().firstOrNull {
+                it.plate == activeMember.plate && it.startAt <= now && it.endAt > now
+            }
+            if (planned != null) {
+                SessionScheduler.notifySessionStarted(getApplication(), planned.plate, planned.startAt)
+            }
+            ParkingService.start(getApplication(), activeMember.plate, planned?.endAt ?: 0L)
+            SessionScheduler.onActiveSessionChanged(getApplication())
         } else if (activeMember == null && prefs.isParking) {
             prefs.clearActiveParking()
             ParkingService.stop(getApplication())
+            SessionScheduler.onActiveSessionChanged(getApplication())
         }
+    }
+
+    /** Persist the merged planned sessions for [productId] and reschedule them. */
+    private fun syncPlannedSessions(productId: String, details: ProductDetails) {
+        val activeEnds = details.members
+            .filter { it.active && it.actionId != null }
+            .mapNotNull { member ->
+                member.timeEnd?.let { Planning.parseTimestamp(it) }?.let { member.plate to it }
+            }
+            .toMap()
+        SessionScheduler.onPlannedSessionsUpdated(
+            getApplication(),
+            productId,
+            Planning.mergeToSessions(details.plannedActions),
+            activeEnds,
+        )
     }
 
     private suspend fun ensureLoggedIn() {
@@ -241,14 +307,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Emit [healthAlert] at most once per failure episode. A later successful
+     * check (or logout) resets the guard so a new episode can warn again.
+     */
+    private fun maybeEmitHealthAlert() {
+        if (healthAlertShown) return
+        healthAlertShown = true
+        _healthAlert.tryEmit(Unit)
+    }
+
     /** Full wipe shared by manual logout and expired-session auto-logout. */
     fun logout() {
+        SessionScheduler.cancelAll(getApplication())
         ParkingService.stop(getApplication())
         api.logout()
         prefs.clearAll()
-        observedPlannedPlates.clear()
         appliedDefaultProduct = false
         checksStarted = false
+        healthAlertShown = false
         _health.value = HealthState.CHECKING
     }
 }

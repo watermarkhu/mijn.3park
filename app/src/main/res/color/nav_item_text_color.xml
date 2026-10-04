@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bottom-nav label colour. Mirrors nav_item_icon_tint so a disabled "Planned"
+  tab fades far below the idle tabs (0.24 alpha vs. Material's default 0.38).
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:state_enabled="false"
+        android:alpha="0.24"
+        android:color="?attr/colorOnSurface"/>
+    <item
+        android:state_pressed="true"
+        android:state_checked="true"
+        android:color="?attr/colorOnSurface"/>
+    <item
+        android:state_checked="true"
+        android:color="?attr/colorOnSurface"/>
+    <item
+        android:state_pressed="true"
+        android:color="?attr/colorOnSurface"/>
+    <item
+        android:color="?attr/colorOnSurfaceVariant"/>
+</selector>

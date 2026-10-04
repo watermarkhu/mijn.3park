@@ -12,6 +12,30 @@
             column="20"/>
     </issue>
 
+    <!-- Deliberate "Ok" label from the issue wording; Android lint prefers
+         "OK". Suppressed rather than diverging from the requested text. -->
+    <issue
+        id="Typos"
+        message="&quot;Ok&quot; is usually capitalized as &quot;OK&quot;"
+        errorLine1="    &lt;string name=&quot;health_alert_ok&quot;>Ok&lt;/string>"
+        errorLine2="                                   ~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="127"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="ButtonCase"
+        message="The standard Android way to capitalize Ok is &quot;OK&quot; (tip: use `@android:string/ok` instead)"
+        errorLine1="    &lt;string name=&quot;health_alert_ok&quot;>Ok&lt;/string>"
+        errorLine2="                                   ~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="127"
+            column="36"/>
+    </issue>
+
     <issue
         id="NotifyDataSetChanged"
         message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."

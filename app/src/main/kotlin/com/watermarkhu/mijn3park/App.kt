@@ -10,5 +10,6 @@ class App : Application() {
         AppCompatDelegate.setDefaultNightMode(
             ThemePrefs.nightMode(ThemePrefs(this).theme)
         )
+        NotificationChannels.ensure(this)
     }
 }

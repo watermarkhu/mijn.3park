@@ -98,4 +98,16 @@ object Planning {
                 endAt > parseTimestamp(it.timeStart)
         }
     }
+
+    /**
+     * Collapse the server's same-day legs into absolute-time sessions, ready to
+     * be persisted and scheduled.
+     */
+    fun mergeToSessions(actions: List<PlannedAction>): List<PlannedSession> =
+        mergeGroups(actions).mapNotNull { group ->
+            val first = group.firstOrNull() ?: return@mapNotNull null
+            val start = parseTimestamp(first.timeStart)
+            val end = parseTimestamp(group.last().timeEnd)
+            if (start <= 0L || end <= start) null else PlannedSession(first.plate, start, end)
+        }
 }
