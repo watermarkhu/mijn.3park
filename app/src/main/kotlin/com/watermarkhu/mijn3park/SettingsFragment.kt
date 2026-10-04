@@ -36,6 +36,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
     private lateinit var themeDark: MaterialRadioButton
     private lateinit var notificationStatus: TextView
     private lateinit var notificationOpenButton: MaterialButton
+    private lateinit var reminderDropdown: MaterialAutoCompleteTextView
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -58,6 +59,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         themeDark = view.findViewById(R.id.themeDark)
         notificationStatus = view.findViewById(R.id.notificationStatus)
         notificationOpenButton = view.findViewById(R.id.notificationOpenButton)
+        reminderDropdown = view.findViewById(R.id.reminderDropdown)
 
         accountEmail.text = prefs.email
 
@@ -78,6 +80,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         setUpTheme()
         refreshNotificationStatus()
         notificationOpenButton.setOnClickListener { onNotificationButton() }
+        setUpReminders()
 
         view.findViewById<MaterialButton>(R.id.logoutButton).setOnClickListener {
             (activity as? MainActivity)?.performLogout()
@@ -125,6 +128,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         // The permission can change while the app is backgrounded (system
         // settings), so re-read it whenever the fragment comes back.
         if (::notificationStatus.isInitialized) refreshNotificationStatus()
+        if (::reminderDropdown.isInitialized) renderReminder()
     }
 
     private fun refreshNotificationStatus() {
@@ -174,4 +178,40 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         }
         startActivity(intent)
     }
+
+    private fun setUpReminders() {
+        val options = reminderOptions()
+        reminderDropdown.setAdapter(
+            ArrayAdapter(
+                requireContext(),
+                android.R.layout.simple_list_item_1,
+                options.map { getString(it.first) },
+            ),
+        )
+        renderReminder()
+        reminderDropdown.setOnItemClickListener { _, _, position, _ ->
+            val minutes = options.getOrNull(position)?.second ?: return@setOnItemClickListener
+            prefs.reminderIntervalMinutes = minutes
+            SessionScheduler.setReminderInterval(requireContext(), minutes)
+            renderReminder()
+        }
+    }
+
+    private fun renderReminder() {
+        val minutes = prefs.reminderIntervalMinutes
+        val option = reminderOptions().firstOrNull { it.second == minutes } ?: reminderOptions().first()
+        reminderDropdown.setText(getString(option.first), false)
+    }
+
+    /** Reminder choices and their interval in minutes (0 = off). */
+    private fun reminderOptions(): List<Pair<Int, Int>> = listOf(
+        R.string.reminder_off to 0,
+        R.string.reminder_30m to 30,
+        R.string.reminder_1h to 60,
+        R.string.reminder_2h to 120,
+        R.string.reminder_4h to 240,
+        R.string.reminder_8h to 480,
+        R.string.reminder_16h to 960,
+        R.string.reminder_24h to 1440,
+    )
 }

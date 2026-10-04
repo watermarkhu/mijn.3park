@@ -74,6 +74,15 @@
     <string name="notification_permission_status_not_granted">Meldingen staan uit. Parkeerherinneringen en de melding voor actief parkeren worden niet getoond.</string>
     <string name="notification_permission_open">Inschakelen</string>
     <string name="notification_permission_missing">Meldingen staan uit — schakel ze in bij Instellingen voor parkeerupdates</string>
+    <string name="settings_reminders">Herinneringen</string>
+    <string name="reminder_off">Uit</string>
+    <string name="reminder_30m">Elke 30 minuten</string>
+    <string name="reminder_1h">Elk uur</string>
+    <string name="reminder_2h">Elke 2 uur</string>
+    <string name="reminder_4h">Elke 4 uur</string>
+    <string name="reminder_8h">Elke 8 uur</string>
+    <string name="reminder_16h">Elke 16 uur</string>
+    <string name="reminder_24h">Elke 24 uur</string>
 
     <!-- History & transactions -->
     <string name="history_empty">Nog geen parkeeracties</string>
@@ -92,14 +101,21 @@
     <string name="notification_text_until">%1$s · sinds %2$s · tot %3$s</string>
     <string name="notification_text_balance_until">%1$s · sinds %2$s · saldo %3$s · tot %4$s</string>
     <string name="notification_parking_ended">Parkeren beëindigd</string>
-    <string name="notification_ended">Parkeren voor %1$s beëindigd</string>
     <string name="notification_starting">Parkeren starten…</string>
     <string name="notification_stopping">Parkeren stoppen…</string>
     <string name="notification_renew_failed">Verlengen mislukt, nieuwe poging volgt: %1$s</string>
     <string name="notification_stop_failed">Stoppen mislukt: %1$s</string>
     <string name="notification_logged_out">Uitgelogd, log opnieuw in</string>
     <string name="notification_action_stop">Stop</string>
-    <string name="notification_planned_started">Geplande sessie gestart voor %1$s</string>
+
+    <!-- Session events & reminders -->
+    <string name="notification_session_started">Sessie gestart voor %1$s</string>
+    <string name="notification_session_ended">Sessie voor %1$s is beëindigd</string>
+    <string name="notification_session_reminder">Nog aan het parkeren %1$s</string>
+    <string name="session_events_channel_name">Sessie-updates</string>
+    <string name="session_events_channel_description">Getoond wanneer een geplande parkeersessie start of eindigt</string>
+    <string name="session_reminders_channel_name">Parkeerherinneringen</string>
+    <string name="session_reminders_channel_description">Terugkerende herinneringen zolang een parkeersessie actief is</string>
     <string name="fgs_justification">Houdt een actieve parkeersessie draaiende, met een blijvende melding, en verlengt deze na middernacht totdat de gebruiker stopt.</string>
 
     <!-- Planned sessions (Gepland) -->

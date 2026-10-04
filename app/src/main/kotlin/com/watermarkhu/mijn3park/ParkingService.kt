@@ -3,7 +3,6 @@ package com.watermarkhu.mijn3park
 import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
@@ -42,11 +41,9 @@ class ParkingService : Service() {
         const val ACTION_AUTO_STOP = "com.watermarkhu.mijn3park.action.AUTO_STOP"
         const val EXTRA_PLATE = "plate"
         const val EXTRA_END_AT = "end_at"
-        const val EXTRA_PLANNED = "planned"
 
-        const val CHANNEL_ID = "parking_active"
+        const val CHANNEL_ID = NotificationChannels.ACTIVE
         const val NOTIFICATION_ID = 1
-        const val NOTIFICATION_ENDED_ID = 2
 
         /** Invoked on the main thread whenever parking state changes. */
         @Volatile
@@ -55,12 +52,11 @@ class ParkingService : Service() {
         @Volatile
         var lastError: String? = null
 
-        fun start(context: Context, plate: String, endAt: Long = 0L, notifyPlannedStart: Boolean = false) {
+        fun start(context: Context, plate: String, endAt: Long = 0L) {
             val intent = Intent(context, ParkingService::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_PLATE, normalizePlate(plate))
                 .putExtra(EXTRA_END_AT, endAt)
-                .putExtra(EXTRA_PLANNED, notifyPlannedStart)
             if (Build.VERSION.SDK_INT >= 26) {
                 context.startForegroundService(intent)
             } else {
@@ -96,13 +92,7 @@ class ParkingService : Service() {
             ACTION_START -> {
                 val plate = intent.getStringExtra(EXTRA_PLATE).orEmpty()
                 val endAt = intent.getLongExtra(EXTRA_END_AT, 0L)
-                val planned = intent.getBooleanExtra(EXTRA_PLANNED, false)
-                goForeground(
-                    buildNotification(
-                        if (planned) getString(R.string.notification_planned_started, plate.ifBlank { "?" })
-                        else getString(R.string.notification_starting)
-                    )
-                )
+                goForeground(buildNotification(getString(R.string.notification_starting)))
                 startParking(plate, endAt)
             }
             ACTION_AUTO_STOP -> {
@@ -160,6 +150,7 @@ class ParkingService : Service() {
                 goForeground(activeNotification())
                 scheduleMidnightRenewal()
                 scheduleEndAlarm(prefs.activeEndAt)
+                SessionScheduler.onActiveSessionChanged(this@ParkingService)
                 onStateChanged?.invoke()
             } catch (_: AuthFailedException) {
                 handleAuthFailure()
@@ -190,6 +181,7 @@ class ParkingService : Service() {
                 refreshBalance()
                 goForeground(activeNotification())
                 scheduleMidnightRenewal()
+                SessionScheduler.onActiveSessionChanged(this@ParkingService)
                 onStateChanged?.invoke()
             } catch (_: AuthFailedException) {
                 handleAuthFailure()
@@ -225,6 +217,7 @@ class ParkingService : Service() {
                 prefs.clearActiveParking()
                 cancelAlarm()
                 cancelEndAlarm()
+                SessionScheduler.onActiveSessionChanged(this@ParkingService)
                 onStateChanged?.invoke()
                 stopSelfCompletely()
             }
@@ -255,7 +248,7 @@ class ParkingService : Service() {
             prefs.clearActiveParking()
             cancelAlarm()
             cancelEndAlarm()
-            notifyEnded(endedNotification(plate))
+            SessionScheduler.onSessionEnded(this@ParkingService, plate)
             onStateChanged?.invoke()
             stopSelfCompletely()
         }
@@ -274,6 +267,7 @@ class ParkingService : Service() {
      */
     private fun handleAuthFailure() {
         currentJob?.cancel()
+        SessionScheduler.cancelAll(this)
         prefs.clearAll()
         api.logout()
         cancelAlarm()
@@ -358,32 +352,13 @@ class ParkingService : Service() {
      * inexact alarm when the user did not grant it instead of crashing.
      */
     private fun scheduleExactOrFallback(triggerAtMillis: Long, intent: PendingIntent) {
-        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
-        val exact =
-            (Build.VERSION.SDK_INT < 31) || alarmManager.canScheduleExactAlarms()
-        if (exact) {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP, triggerAtMillis, intent
-            )
-        } else {
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, intent)
-        }
+        SessionScheduler.scheduleExactOrFallback(this, triggerAtMillis, intent)
     }
 
     // --- Notifications ---
 
     private fun createChannel() {
-        if (Build.VERSION.SDK_INT >= 26) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW,
-            ).apply {
-                description = getString(R.string.notification_channel_description)
-            }
-            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
-        }
+        NotificationChannels.ensure(this)
     }
 
     private fun activeNotification(): Notification {
@@ -420,24 +395,6 @@ class ParkingService : Service() {
             endDay[Calendar.DAY_OF_YEAR] == today[Calendar.DAY_OF_YEAR]
         val pattern = if (sameDay) "HH:mm" else "d MMM HH:mm"
         return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(endAtMillis))
-    }
-
-    /** Final, non-ongoing notification after the planned end time is reached. */
-    private fun endedNotification(plate: String): Notification {
-        val contentFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        val contentIntent = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java), contentFlags
-        )
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_car)
-            .setContentTitle(getString(R.string.notification_parking_ended))
-            .setContentText(getString(R.string.notification_ended, plate))
-            .setContentIntent(contentIntent)
-            .setOngoing(false)
-            .setAutoCancel(true)
-            .setShowWhen(true)
-            .setWhen(System.currentTimeMillis())
-            .build()
     }
 
     private fun buildNotification(text: String, showStop: Boolean = false): Notification {
@@ -488,11 +445,6 @@ class ParkingService : Service() {
         ServiceCompat.startForeground(
             this, NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
         )
-    }
-
-    private fun notifyEnded(notification: Notification) {
-        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(NOTIFICATION_ENDED_ID, notification)
     }
 
     override fun onDestroy() {

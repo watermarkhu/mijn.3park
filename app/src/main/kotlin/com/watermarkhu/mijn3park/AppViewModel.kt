@@ -60,9 +60,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var appliedDefaultProduct = false
     private var checksStarted = false
 
-    /** Plates observed as having SCHEDULED (planned) actions in this process. */
-    private val observedPlannedPlates = mutableSetOf<String>()
-
     /** The selected product, derived from the stored product id. */
     private fun selectedProduct(products: List<Product> = _state.value.products): Product? =
         products.firstOrNull { it.id == prefs.productId }
@@ -124,6 +121,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     _state.update { it.copy(balance = "") }
                 }
 
+                // Persist and schedule the freshly read planned sessions before
+                // syncing the running session, so a server-side auto-start can
+                // match (and dedupe) its start notification.
+                syncPlannedSessions(details)
+
                 // Sync local state with the server (parking started/stopped elsewhere).
                 syncParkingSession(details)
 
@@ -184,6 +186,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     prefs.lastBalance = balance.formatted
                     _state.update { it.copy(balance = balance.formatted) }
                 }
+                syncPlannedSessions(details)
                 syncParkingSession(details)
             } catch (_: AuthFailedException) {
                 _sessionExpired.tryEmit(Unit)
@@ -203,23 +206,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Align the local parking session with what the server reports. */
     private fun syncParkingSession(details: ProductDetails) {
-        // Remember which plates are currently planned, so a later server-side
-        // auto-start can be reported as a planned session starting.
-        observedPlannedPlates += details.plannedActions.map { it.plate }
         val activeMember = details.members.firstOrNull { it.active && it.actionId != null }
         if (activeMember != null && !prefs.isParking) {
-            val startedFromPlan = observedPlannedPlates.remove(activeMember.plate)
             prefs.activePlate = activeMember.plate
             prefs.activeSince = System.currentTimeMillis()
-            ParkingService.start(
-                getApplication(),
-                activeMember.plate,
-                notifyPlannedStart = startedFromPlan,
-            )
+            // A planned session the server auto-started may already have been
+            // announced by its start alarm; notifySessionStarted dedupes them.
+            val now = prefs.activeSince
+            val planned = prefs.plannedSessions.firstOrNull {
+                it.plate == activeMember.plate && it.startAt <= now && it.endAt > now
+            }
+            if (planned != null) {
+                SessionScheduler.notifySessionStarted(getApplication(), planned.plate, planned.startAt)
+            }
+            ParkingService.start(getApplication(), activeMember.plate)
+            SessionScheduler.onActiveSessionChanged(getApplication())
         } else if (activeMember == null && prefs.isParking) {
             prefs.clearActiveParking()
             ParkingService.stop(getApplication())
+            SessionScheduler.onActiveSessionChanged(getApplication())
         }
+    }
+
+    /** Persist the merged planned sessions and reschedule their alarms. */
+    private fun syncPlannedSessions(details: ProductDetails) {
+        SessionScheduler.onPlannedSessionsUpdated(
+            getApplication(),
+            Planning.mergeToSessions(details.plannedActions),
+        )
     }
 
     private suspend fun ensureLoggedIn() {
@@ -243,10 +257,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Full wipe shared by manual logout and expired-session auto-logout. */
     fun logout() {
+        SessionScheduler.cancelAll(getApplication())
         ParkingService.stop(getApplication())
         api.logout()
         prefs.clearAll()
-        observedPlannedPlates.clear()
         appliedDefaultProduct = false
         checksStarted = false
         _health.value = HealthState.CHECKING

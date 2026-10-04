@@ -2,9 +2,18 @@ package com.watermarkhu.mijn3park
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * A future parking session with absolute timestamps, merged from the server's
+ * same-day legs. Persisted locally so notifications can be scheduled without
+ * re-contacting the API; refreshed whenever the app opens.
+ */
+data class PlannedSession(val plate: String, val startAt: Long, val endAt: Long)
 
 /**
  * App state persisted in AES256-GCM [EncryptedSharedPreferences], backed by a
@@ -124,6 +133,50 @@ class Prefs(context: Context) {
 
     val isParking: Boolean
         get() = activePlate.isNotBlank()
+
+    /**
+     * Internal planned-session state, refreshed from the server whenever the
+     * app opens. Also keeps sessions that already started but have not ended
+     * yet, so their end (and reminder) alarms survive a server-side auto-start.
+     */
+    var plannedSessions: List<PlannedSession>
+        get() {
+            val raw = prefs.getString("planned_sessions", "[]") ?: "[]"
+            return try {
+                val array = JSONArray(raw)
+                (0 until array.length()).mapNotNull { index ->
+                    val obj = array.optJSONObject(index) ?: return@mapNotNull null
+                    val plate = obj.optString("plate")
+                    if (plate.isBlank()) return@mapNotNull null
+                    PlannedSession(plate, obj.optLong("start"), obj.optLong("end"))
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+        set(value) {
+            val array = JSONArray()
+            value.forEach { session ->
+                array.put(
+                    JSONObject().apply {
+                        put("plate", session.plate)
+                        put("start", session.startAt)
+                        put("end", session.endAt)
+                    },
+                )
+            }
+            prefs.edit { putString("planned_sessions", array.toString()) }
+        }
+
+    /** Reminder cadence in minutes while a session is active; 0 means off. */
+    var reminderIntervalMinutes: Int
+        get() = prefs.getInt("reminder_interval_minutes", 0)
+        set(value) = prefs.edit { putInt("reminder_interval_minutes", value) }
+
+    /** Dedupe key ("plate|startAt") of the last posted session-started event. */
+    var lastSessionEventKey: String
+        get() = prefs.getString("last_session_event_key", "") ?: ""
+        set(value) = prefs.edit { putString("last_session_event_key", value) }
 
     fun clearActiveParking() {
         prefs.edit().remove("active_plate").remove("active_since").remove("active_end_at").apply()

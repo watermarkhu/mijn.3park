@@ -79,6 +79,15 @@
     <string name="notification_permission_status_not_granted">Notifications are turned off. Parking reminders and the active-parking notification won’t be shown.</string>
     <string name="notification_permission_open">Turn on</string>
     <string name="notification_permission_missing">Notifications are off — enable them in Settings to get parking updates</string>
+    <string name="settings_reminders">Reminders</string>
+    <string name="reminder_off">Off</string>
+    <string name="reminder_30m">Every 30 minutes</string>
+    <string name="reminder_1h">Every hour</string>
+    <string name="reminder_2h">Every 2 hours</string>
+    <string name="reminder_4h">Every 4 hours</string>
+    <string name="reminder_8h">Every 8 hours</string>
+    <string name="reminder_16h">Every 16 hours</string>
+    <string name="reminder_24h">Every 24 hours</string>
 
     <!-- History & transactions -->
     <string name="history_empty">No parking actions yet</string>
@@ -97,14 +106,21 @@
     <string name="notification_text_until">%1$s · since %2$s · until %3$s</string>
     <string name="notification_text_balance_until">%1$s · since %2$s · balance %3$s · until %4$s</string>
     <string name="notification_parking_ended">Parking ended</string>
-    <string name="notification_ended">Parking for %1$s ended</string>
     <string name="notification_starting">Starting parking…</string>
     <string name="notification_stopping">Stopping parking…</string>
     <string name="notification_renew_failed">Renewal failed, will retry: %1$s</string>
     <string name="notification_stop_failed">Stop failed: %1$s</string>
     <string name="notification_logged_out">Logged out, please log in again</string>
     <string name="notification_action_stop">Stop</string>
-    <string name="notification_planned_started">Planned session started for %1$s</string>
+
+    <!-- Session events & reminders -->
+    <string name="notification_session_started">Session started for %1$s</string>
+    <string name="notification_session_ended">Session for %1$s has ended</string>
+    <string name="notification_session_reminder">Still parking %1$s</string>
+    <string name="session_events_channel_name">Session updates</string>
+    <string name="session_events_channel_description">Shown when a planned parking session starts or ends</string>
+    <string name="session_reminders_channel_name">Parking reminders</string>
+    <string name="session_reminders_channel_description">Recurring reminders while a parking session is active</string>
     <string name="fgs_justification">Keeps an active parking session running, with a persistent notification, and renews it after midnight until the user stops it.</string>
 
     <!-- Planned sessions (Gepland) -->

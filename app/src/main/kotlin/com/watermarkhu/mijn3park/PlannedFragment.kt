@@ -142,6 +142,8 @@ class PlannedFragment : Fragment(R.layout.fragment_planned) {
                         group.forEach { api.cancelPlanned(prefs.productId, it.id) }
                         Toast.makeText(requireContext(), R.string.planned_removed, Toast.LENGTH_SHORT).show()
                         load()
+                        // Persist the removal and drop the session's alarms.
+                        vm.refreshRemoteData()
                     } catch (_: AuthFailedException) {
                         vm.reportSessionExpired()
                     } catch (_: SessionExpiredException) {
