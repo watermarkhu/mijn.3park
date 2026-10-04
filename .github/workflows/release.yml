@@ -58,7 +58,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION_NAME: ${{ needs.release.outputs.version }}
-          RELEASECODE_START: 2
+          RELEASECODE_START: 5
           RELEASE_LIMIT: 1000
         run: |
           # versionCode must be unique and strictly increasing across every
