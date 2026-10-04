@@ -265,6 +265,56 @@ is routed back via `vm.reportApiFailure()` / `reportSessionExpired()`.
 
 ---
 
+## Building & testing
+
+- **JDK 17.** Build with the Gradle wrapper (`./gradlew`) — never install a
+  separate Gradle; the wrapper pins the version (see
+  `gradle/wrapper/gradle-wrapper.properties`).
+- **Android SDK.** `compileSdk = 37` and `buildToolsVersion = "36.0.0"` (see
+  `app/build.gradle.kts`). API 37 is minor-versioned, so the platform package is
+  `platforms;android-37.<minor>` (e.g. `android-37.2`), **not**
+  `platforms;android-37`. Point Gradle at the SDK with an untracked
+  `local.properties` (`sdk.dir=…`) or `ANDROID_HOME`.
+- **Installing SDK packages.** Prefer the current `android` CLI — `sdkmanager`
+  is deprecated (it prints a notice and points at `android sdk …`). The new CLI
+  uses **slash** package ids, unlike sdkmanager's semicolons:
+  `android sdk install platform-tools build-tools/36.0.0 platforms/android-37.2`.
+- **Validate before committing** (this is exactly what CI runs in
+  `.github/workflows/ci.yml`):
+  ```
+  ./gradlew :app:lintDebug --stacktrace
+  ./gradlew :app:testDebugUnitTest --stacktrace
+  ./gradlew :app:assembleDebug --stacktrace
+  ```
+  Lint is strict: `abortOnError = true` and `warningsAsErrors = true` in
+  `app/build.gradle.kts`, so any new warning fails the build. If a deliberate
+  new finding is unavoidable, add the smallest entry to `app/lint-baseline.xml`
+  and say why.
+- Unit tests live in `app/src/test/kotlin/…` (JUnit 4). Prefer extracting pure
+  logic so it is testable without Android — see `Planning` and `Formats`.
+- There is no network sandbox. The `MockBackend` demo account
+  (`TwoParkApi.MOCK_EMAIL`) lets the app run offline for review/screenshots.
+
+### Version control
+
+- The repo is managed with **GitButler** (`but`). Use a dedicated branch per
+  agent session; see the global agent guidance and the `gitbutler` skill for
+  commands and recipes.
+- **Linked worktrees + GitButler don't mix cleanly.** `but commit` is not
+  supported from inside a linked worktree, and committing there with plain
+  `git` leaves a real commit on top of the GitButler workspace commit, which
+  wedges `but` ("workspace commit isn't at the top" → it demands
+  `but teardown`). If you need parallel worktrees, either (a) drop out of
+  GitButler mode first (`but teardown --checkout-to <branch>`) and use plain
+  git throughout, or (b) stay in GitButler and commit from the **main checkout**
+  targeting `<worktree>:<path>` (`but commit -b <branch> <worktree>:<path>`).
+  Never run `but setup` from a linked worktree.
+- Branch names must not collide with an existing ref: a local branch `feat`
+  already exists, so `feat/…` fails with `fatal: cannot lock ref`. Prefer flat
+  names such as `issue-NN-<slug>`.
+
+---
+
 ## Working with the live API
 
 - There is no test/sandbox environment. `start_action`, `stop_action`,
