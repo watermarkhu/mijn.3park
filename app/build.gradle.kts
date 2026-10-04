@@ -80,3 +80,13 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
 }
+
+// F-Droid reproducible builds: the merged baseline profile
+// (assets/dexopt/baseline.prof/.profm) is not deterministic, which breaks the
+// byte-for-byte APK comparison F-Droid performs. Disabling the profile tasks
+// drops it from the release build, at the cost of some startup precompilation.
+tasks.whenTaskAdded {
+    if (name.contains("ArtProfile")) {
+        enabled = false
+    }
+}
