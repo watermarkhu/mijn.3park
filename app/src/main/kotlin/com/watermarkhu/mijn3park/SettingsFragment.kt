@@ -6,7 +6,6 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.net.toUri
@@ -30,18 +29,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
     private val vm: AppViewModel by activityViewModels()
     private val prefs get() = vm.prefs
-
-    private val notificationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            // A second denial ("don't ask again") returns here immediately:
-            // send the user to the system settings so the entry stays useful.
-            val canAskAgain = requireActivity()
-                .shouldShowRequestPermissionRationale(NotificationPermission.PERMISSION)
-            if (!granted && !canAskAgain) {
-                openNotificationSettings()
-            }
-            renderNotificationStatus()
-        }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings, rootKey)
@@ -104,13 +91,24 @@ class SettingsFragment : PreferenceFragmentCompat() {
         reminderPref.entries = options.map { getString(it.first) as CharSequence }.toTypedArray()
         reminderPref.entryValues = options.map { it.second.toString() as CharSequence }.toTypedArray()
         reminderPref.value = prefs.reminderIntervalMinutes.toString()
+        renderReminderSummary(reminderPref, options)
         reminderPref.setOnPreferenceChangeListener { _, newValue ->
             val minutes = (newValue as? String)?.toIntOrNull()
                 ?: return@setOnPreferenceChangeListener false
             prefs.reminderIntervalMinutes = minutes
             SessionScheduler.setReminderInterval(requireContext(), minutes)
+            reminderPref.value = minutes.toString()
+            renderReminderSummary(reminderPref, options)
             true
         }
+    }
+
+    /** The cadence plus what a reminder actually means. */
+    private fun renderReminderSummary(pref: ListPreference, options: List<Pair<Int, Int>>) {
+        val label = options.firstOrNull { it.second == prefs.reminderIntervalMinutes }
+            ?.let { getString(it.first) }
+            ?: ""
+        pref.summary = getString(R.string.settings_reminders_summary, label)
     }
 
     /** Reminder choices and their interval in minutes (0 = off). */
@@ -126,8 +124,10 @@ class SettingsFragment : PreferenceFragmentCompat() {
     )
 
     private fun setUpNotifications() {
+        // Always open the system notification settings for this app, whether or
+        // not notifications are currently enabled.
         findPreference<Preference>("notifications")?.setOnPreferenceClickListener {
-            onNotificationButton()
+            openNotificationSettings()
             true
         }
         renderNotificationStatus()
@@ -140,18 +140,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
             } else {
                 getString(R.string.notification_permission_status_not_granted)
             }
-    }
-
-    /** Re-request on API 33+, or deep-link to the app's notification settings. */
-    private fun onNotificationButton() {
-        if (Build.VERSION.SDK_INT >= 33) {
-            // Always attempt the in-app request: a dismissed dialog leaves the
-            // permission state unchanged and shouldShowRequestPermissionRationale
-            // stays false, so gating on it would wrongly open Settings instead.
-            notificationPermissionLauncher.launch(NotificationPermission.PERMISSION)
-        } else {
-            openNotificationSettings()
-        }
     }
 
     private fun openNotificationSettings() {

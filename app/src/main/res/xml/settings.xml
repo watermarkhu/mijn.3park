@@ -20,8 +20,7 @@
     <PreferenceCategory app:title="@string/settings_reminders">
         <ListPreference
             app:key="reminder"
-            app:title="@string/settings_reminders"
-            app:useSimpleSummaryProvider="true"/>
+            app:title="@string/settings_reminders"/>
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/settings_notifications">

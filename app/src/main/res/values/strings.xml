@@ -100,6 +100,7 @@
     <string name="notification_permission_status_not_granted">Notifications are turned off. Parking reminders and the active-parking notification won’t be shown.</string>
     <string name="notification_permission_missing">Notifications are off — enable them in Settings to get parking updates</string>
     <string name="settings_reminders">Reminders</string>
+    <string name="settings_reminders_summary">%1$s. Notifies you periodically while a parking session started in this app is active.</string>
     <string name="reminder_off">Off</string>
     <string name="reminder_30m">Every 30 minutes</string>
     <string name="reminder_1h">Every hour</string>
