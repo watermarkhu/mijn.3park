@@ -42,7 +42,6 @@
     <string name="error_no_plate">Voer een kenteken in of selecteer er een</string>
     <string name="error_no_product">Selecteer eerst een product</string>
     <string name="set_default_product">Als standaardproduct gebruiken</string>
-    <string name="default_product_set">Standaardproduct: %1$s</string>
     <string name="menu_refresh">Vernieuwen</string>
     <string name="menu_topup">Saldo opwaarderen</string>
     <string name="topup_title">Saldo opwaarderen</string>
@@ -59,7 +58,7 @@
     <string name="health_unreliable_message">2Park gaf onverwachte gegevens terug. Parkeren is uitgeschakeld om fouten te voorkomen.</string>
 
     <!-- Affiliation disclaimer -->
-    <string name="disclaimer">mijn.3park is een onofficiële app en is niet verbonden aan mijn.2park.nl. Het is een soloproject, gemaakt omdat de officiële interface van mijn.2park.nl onhandig is. Er worden geen gegevens naar derden gestuurd. De app verbindt rechtstreeks met 2Park en je gegevens blijven alleen op dit toestel.</string>
+    <string name="disclaimer">mijn.3park is een onofficiële app en is niet verbonden aan mijn.2park.nl. Het is een soloproject, gemaakt omdat de officiële interface van mijn.2park.nl onhandig is. Er worden geen gegevens naar derden gestuurd. De app verbindt rechtstreeks met mijn.2park.nl en je gegevens blijven alleen op dit toestel.</string>
     <string name="set_end_time">Eindtijd instellen (optioneel)</string>
     <string name="clear">Wissen</string>
     <string name="ends_at">Eindigt om %1$s</string>
@@ -75,16 +74,30 @@
 
     <!-- Settings -->
     <string name="settings_account">Account</string>
+    <string name="settings_parking">Parkeren</string>
+    <string name="settings_appearance">Weergave</string>
     <string name="settings_theme">Thema</string>
     <string name="settings_theme_system">Systeem</string>
     <string name="settings_theme_light">Licht</string>
     <string name="settings_theme_dark">Donker</string>
+    <string name="settings_expressive">Material 3</string>
+    <string name="settings_expressive_summary">Gebruikt het dynamische kleurenpalet in plaats van de standaard Material 3-kleuren.</string>
+    <string name="settings_language">Taal</string>
+    <string name="settings_language_system">Systeemstandaard</string>
+    <string name="settings_language_en">Engels</string>
+    <string name="settings_language_nl">Nederlands</string>
+    <string name="settings_about">Over</string>
+    <string name="settings_version">Versie</string>
+    <string name="settings_version_value">%1$s (%2$d)</string>
+    <string name="settings_disclaimer">Disclaimer</string>
+    <string name="settings_github">GitHub</string>
     <string name="settings_notifications">Meldingen</string>
     <string name="notification_permission_status_granted">Meldingen zijn ingeschakeld</string>
     <string name="notification_permission_status_not_granted">Meldingen staan uit. Parkeerherinneringen en de melding voor actief parkeren worden niet getoond.</string>
-    <string name="notification_permission_open">Inschakelen</string>
     <string name="notification_permission_missing">Meldingen staan uit — schakel ze in bij Instellingen voor parkeerupdates</string>
     <string name="settings_reminders">Herinneringen</string>
+    <string name="settings_reminders_summary">%1$s. Geeft periodiek een herinnering zolang een parkeersessie actief is.</string>
+    <string name="settings_reminders_off_summary">Geen herinneringen tijdens parkeren.</string>
     <string name="reminder_off">Uit</string>
     <string name="reminder_30m">Elke 30 minuten</string>
     <string name="reminder_1h">Elk uur</string>

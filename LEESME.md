@@ -1,5 +1,9 @@
 # mijn.3park
 
+[English](./README.md)
+
+<img src="https://raw.githubusercontent.com/pioug/google-play-badges/refs/heads/main/svg/nl.svg" height="40em" href="https://play.google.com/apps/internaltest/4701452654393961893">
+
 <img src="store/icon.svg" alt="mijn.3park app-icoon" width="96" align="right"/>
 
 Een onofficiële Android-client voor **[mijn.2park.nl](https://mijn.2park.nl)**,
@@ -47,5 +51,5 @@ eigenaardigheden ervan en de architectuur van de app.
 > mijn.3park is een onofficiële app en is niet verbonden aan mijn.2park.nl. Het
 > is een soloproject, gemaakt omdat de officiële mijn.2park.nl-interface
 > onhandig is in gebruik. Er worden geen gegevens naar derden gestuurd. De app
-> maakt rechtstreeks verbinding met 2Park en je gegevens blijven alleen op dit
+> maakt rechtstreeks verbinding met mijn.2park.nl en je gegevens blijven alleen op dit
 > toestel.

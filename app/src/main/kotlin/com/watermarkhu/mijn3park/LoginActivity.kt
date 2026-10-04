@@ -41,6 +41,7 @@ class LoginActivity : AppCompatActivity() {
     private var healthAlertDialog: AlertDialog? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        ThemePrefs.applyTheme(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
         prefs = Prefs(this)

@@ -6,165 +6,191 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
-import android.widget.ArrayAdapter
-import android.widget.TextView
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.view.isVisible
-import androidx.fragment.app.Fragment
+import androidx.core.content.pm.PackageInfoCompat
+import androidx.core.net.toUri
+import androidx.core.os.LocaleListCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.color.MaterialColors
-import com.google.android.material.radiobutton.MaterialRadioButton
-import com.google.android.material.textfield.MaterialAutoCompleteTextView
+import androidx.preference.ListPreference
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.SwitchPreferenceCompat
+import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.launch
 
-class SettingsFragment : Fragment(R.layout.fragment_settings) {
+/**
+ * Settings screen built from [R.xml.settings]: account, active/default product,
+ * reminder cadence, notification permission, appearance (theme + Material 3
+ * Expressive), language, and about (version + GitHub).
+ */
+class SettingsFragment : PreferenceFragmentCompat() {
 
     private val vm: AppViewModel by activityViewModels()
     private val prefs get() = vm.prefs
 
-    private lateinit var accountEmail: TextView
-    private lateinit var productDropdown: MaterialAutoCompleteTextView
-    private lateinit var defaultProductStar: MaterialButton
-    private lateinit var themeSystem: MaterialRadioButton
-    private lateinit var themeLight: MaterialRadioButton
-    private lateinit var themeDark: MaterialRadioButton
-    private lateinit var notificationStatus: TextView
-    private lateinit var notificationOpenButton: MaterialButton
-    private lateinit var reminderDropdown: MaterialAutoCompleteTextView
-
-    private val notificationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            // A second denial ("don't ask again") returns here immediately:
-            // send the user to the system settings so the button stays useful.
-            val canAskAgain = requireActivity()
-                .shouldShowRequestPermissionRationale(NotificationPermission.PERMISSION)
-            if (!granted && !canAskAgain) {
-                openNotificationSettings()
-            }
-            refreshNotificationStatus()
-        }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        accountEmail = view.findViewById(R.id.accountEmail)
-        productDropdown = view.findViewById(R.id.productDropdown)
-        defaultProductStar = view.findViewById(R.id.defaultProductStar)
-        themeSystem = view.findViewById(R.id.themeSystem)
-        themeLight = view.findViewById(R.id.themeLight)
-        themeDark = view.findViewById(R.id.themeDark)
-        notificationStatus = view.findViewById(R.id.notificationStatus)
-        notificationOpenButton = view.findViewById(R.id.notificationOpenButton)
-        reminderDropdown = view.findViewById(R.id.reminderDropdown)
-
-        accountEmail.text = prefs.email
-
-        productDropdown.setOnItemClickListener { _, _, position, _ ->
-            vm.state.value.products.getOrNull(position)?.let { vm.selectProduct(it) }
-        }
-        defaultProductStar.setOnClickListener {
-            vm.setDefaultProduct(defaultProductStar.isChecked)
-            if (defaultProductStar.isChecked) {
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.default_product_set, prefs.productName),
-                    Toast.LENGTH_SHORT,
-                ).show()
-            }
-        }
-
-        setUpTheme()
-        refreshNotificationStatus()
-        notificationOpenButton.setOnClickListener { onNotificationButton() }
-        setUpReminders()
-
-        view.findViewById<MaterialButton>(R.id.logoutButton).setOnClickListener {
-            (activity as? MainActivity)?.performLogout()
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                vm.state.collect { state ->
-                    productDropdown.setAdapter(
-                        ArrayAdapter(
-                            requireContext(),
-                            android.R.layout.simple_list_item_1,
-                            state.products.map { it.displayName },
-                        ),
-                    )
-                    productDropdown.setText(state.selectedProduct?.displayName ?: prefs.productName, false)
-                    defaultProductStar.isVisible = state.products.size > 1
-                    defaultProductStar.isChecked =
-                        prefs.productId.isNotBlank() && prefs.productId == prefs.defaultProductId
-                }
-            }
-        }
+    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        setPreferencesFromResource(R.xml.settings, rootKey)
     }
 
-    private fun setUpTheme() {
-        val themePrefs = ThemePrefs(requireContext())
-        when (themePrefs.theme) {
-            ThemePrefs.THEME_LIGHT -> themeLight.isChecked = true
-            ThemePrefs.THEME_DARK -> themeDark.isChecked = true
-            else -> themeSystem.isChecked = true
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        boundPreferenceList(view)
+        setUpAccount()
+        setUpParking()
+        setUpReminders()
+        setUpNotifications()
+        setUpAppearance()
+        setUpLanguage()
+        setUpAbout()
+    }
+
+    /**
+     * The preference RecyclerView is created by the library and reused while the
+     * Settings tab is shown. Give it a bounded height and keep its last item
+     * clear of the navigation bar, so the whole list stays scrollable.
+     */
+    private fun boundPreferenceList(root: View) {
+        val list = findRecyclerView(root) ?: return
+        // Only bound the height; keep the concrete (FrameLayout) params type.
+        val params = list.layoutParams
+        if (params != null) {
+            params.height = ViewGroup.LayoutParams.MATCH_PARENT
+        } else {
+            list.layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
         }
-        val listener = { theme: String ->
-            if (themePrefs.theme != theme) {
-                themePrefs.theme = theme
-                AppCompatDelegate.setDefaultNightMode(ThemePrefs.nightMode(theme))
+        list.clipToPadding = false
+        ViewCompat.setOnApplyWindowInsetsListener(list) { v, insets ->
+            v.updatePadding(bottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(list)
+    }
+
+    private fun findRecyclerView(view: View): RecyclerView? {
+        if (view is RecyclerView) return view
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                findRecyclerView(view.getChildAt(i))?.let { return it }
             }
         }
-        themeSystem.setOnClickListener { listener(ThemePrefs.THEME_SYSTEM) }
-        themeLight.setOnClickListener { listener(ThemePrefs.THEME_LIGHT) }
-        themeDark.setOnClickListener { listener(ThemePrefs.THEME_DARK) }
+        return null
     }
 
     override fun onResume() {
         super.onResume()
         // The permission can change while the app is backgrounded (system
         // settings), so re-read it whenever the fragment comes back.
-        if (::notificationStatus.isInitialized) refreshNotificationStatus()
-        if (::reminderDropdown.isInitialized) renderReminder()
+        renderNotificationStatus()
     }
 
-    private fun refreshNotificationStatus() {
-        val granted = NotificationPermission.granted(requireContext())
-        notificationStatus.setText(
-            if (granted) {
-                R.string.notification_permission_status_granted
-            } else {
-                R.string.notification_permission_status_not_granted
-            },
-        )
-        notificationStatus.setTextColor(
-            MaterialColors.getColor(
-                notificationStatus,
-                if (granted) {
-                    com.google.android.material.R.attr.colorOnSurfaceVariant
-                } else {
-                    androidx.appcompat.R.attr.colorError
-                },
-            ),
-        )
-        notificationOpenButton.isVisible = !granted
-    }
-
-    /** Re-request on API 33+, or deep-link to the app's notification settings. */
-    private fun onNotificationButton() {
-        if (Build.VERSION.SDK_INT >= 33) {
-            // Always attempt the in-app request: a dismissed dialog leaves the
-            // permission state unchanged and shouldShowRequestPermissionRationale
-            // stays false, so gating on it would wrongly open Settings instead.
-            // A second denial makes the launcher return immediately, and the
-            // callback falls back to the system settings screen.
-            notificationPermissionLauncher.launch(NotificationPermission.PERMISSION)
-        } else {
-            openNotificationSettings()
+    private fun setUpAccount() {
+        findPreference<Preference>("email")?.summary = prefs.email
+        findPreference<Preference>("logout")?.setOnPreferenceClickListener {
+            (activity as? MainActivity)?.performLogout()
+            true
         }
+    }
+
+    private fun setUpParking() {
+        val productPref = findPreference<ListPreference>("product")
+        val defaultPref = findPreference<SwitchPreferenceCompat>("default_product")
+
+        productPref?.setOnPreferenceChangeListener { _, newValue ->
+            val id = newValue as? String ?: return@setOnPreferenceChangeListener false
+            vm.state.value.products.firstOrNull { it.id == id }?.let { vm.selectProduct(it) }
+            true
+        }
+        defaultPref?.setOnPreferenceChangeListener { _, newValue ->
+            vm.setDefaultProduct(newValue as? Boolean ?: false)
+            true
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                vm.state.collect { state ->
+                    val products = state.products
+                    productPref?.entries = products.map { it.displayName as CharSequence }.toTypedArray()
+                    productPref?.entryValues = products.map { it.id as CharSequence }.toTypedArray()
+                    productPref?.value = prefs.productId
+                    defaultPref?.isVisible = products.size > 1
+                    defaultPref?.isChecked =
+                        prefs.productId.isNotBlank() && prefs.productId == prefs.defaultProductId
+                }
+            }
+        }
+    }
+
+    private fun setUpReminders() {
+        val reminderPref = findPreference<ListPreference>("reminder") ?: return
+        val options = reminderOptions()
+        reminderPref.entries = options.map { getString(it.first) as CharSequence }.toTypedArray()
+        reminderPref.entryValues = options.map { it.second.toString() as CharSequence }.toTypedArray()
+        reminderPref.value = prefs.reminderIntervalMinutes.toString()
+        renderReminderSummary(reminderPref, options)
+        reminderPref.setOnPreferenceChangeListener { _, newValue ->
+            val minutes = (newValue as? String)?.toIntOrNull()
+                ?: return@setOnPreferenceChangeListener false
+            prefs.reminderIntervalMinutes = minutes
+            SessionScheduler.setReminderInterval(requireContext(), minutes)
+            reminderPref.value = minutes.toString()
+            renderReminderSummary(reminderPref, options)
+            true
+        }
+    }
+
+    /** The cadence plus what a reminder actually means. */
+    private fun renderReminderSummary(pref: ListPreference, options: List<Pair<Int, Int>>) {
+        val minutes = prefs.reminderIntervalMinutes
+        pref.summary = if (minutes <= 0) {
+            getString(R.string.settings_reminders_off_summary)
+        } else {
+            val label = options.firstOrNull { it.second == minutes }
+                ?.let { getString(it.first) }
+                ?: ""
+            getString(R.string.settings_reminders_summary, label)
+        }
+    }
+
+    /** Reminder choices and their interval in minutes (0 = off). */
+    private fun reminderOptions(): List<Pair<Int, Int>> = listOf(
+        R.string.reminder_off to 0,
+        R.string.reminder_30m to 30,
+        R.string.reminder_1h to 60,
+        R.string.reminder_2h to 120,
+        R.string.reminder_4h to 240,
+        R.string.reminder_8h to 480,
+        R.string.reminder_16h to 960,
+        R.string.reminder_24h to 1440,
+    )
+
+    private fun setUpNotifications() {
+        // Always open the system notification settings for this app, whether or
+        // not notifications are currently enabled.
+        findPreference<Preference>("notifications")?.setOnPreferenceClickListener {
+            openNotificationSettings()
+            true
+        }
+        renderNotificationStatus()
+    }
+
+    private fun renderNotificationStatus() {
+        findPreference<Preference>("notifications")?.summary =
+            if (NotificationPermission.granted(requireContext())) {
+                getString(R.string.notification_permission_status_granted)
+            } else {
+                getString(R.string.notification_permission_status_not_granted)
+            }
     }
 
     private fun openNotificationSettings() {
@@ -181,39 +207,90 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         startActivity(intent)
     }
 
-    private fun setUpReminders() {
-        val options = reminderOptions()
-        reminderDropdown.setAdapter(
-            ArrayAdapter(
-                requireContext(),
-                android.R.layout.simple_list_item_1,
-                options.map { getString(it.first) },
-            ),
+    private fun setUpAppearance() {
+        val themePrefs = ThemePrefs(requireContext())
+
+        val themePref = findPreference<ListPreference>("theme")
+        themePref?.entries = arrayOf(
+            getString(R.string.settings_theme_system) as CharSequence,
+            getString(R.string.settings_theme_light) as CharSequence,
+            getString(R.string.settings_theme_dark) as CharSequence,
         )
-        renderReminder()
-        reminderDropdown.setOnItemClickListener { _, _, position, _ ->
-            val minutes = options.getOrNull(position)?.second ?: return@setOnItemClickListener
-            prefs.reminderIntervalMinutes = minutes
-            SessionScheduler.setReminderInterval(requireContext(), minutes)
-            renderReminder()
+        themePref?.entryValues = arrayOf(
+            ThemePrefs.THEME_SYSTEM as CharSequence,
+            ThemePrefs.THEME_LIGHT as CharSequence,
+            ThemePrefs.THEME_DARK as CharSequence,
+        )
+        themePref?.value = themePrefs.theme
+        themePref?.setOnPreferenceChangeListener { _, newValue ->
+            val theme = newValue as? String ?: return@setOnPreferenceChangeListener false
+            if (themePrefs.theme != theme) {
+                themePrefs.theme = theme
+                AppCompatDelegate.setDefaultNightMode(ThemePrefs.nightMode(theme))
+            }
+            true
+        }
+
+        val expressivePref = findPreference<SwitchPreferenceCompat>("expressive")
+        expressivePref?.isChecked = themePrefs.expressive
+        expressivePref?.setOnPreferenceChangeListener { _, newValue ->
+            val expressive = newValue as? Boolean ?: false
+            if (themePrefs.expressive != expressive) {
+                themePrefs.expressive = expressive
+                requireActivity().recreate()
+            }
+            true
         }
     }
 
-    private fun renderReminder() {
-        val minutes = prefs.reminderIntervalMinutes
-        val option = reminderOptions().firstOrNull { it.second == minutes } ?: reminderOptions().first()
-        reminderDropdown.setText(getString(option.first), false)
+    private fun setUpLanguage() {
+        val languagePref = findPreference<ListPreference>("language") ?: return
+        languagePref.entries = arrayOf(
+            getString(R.string.settings_language_system) as CharSequence,
+            getString(R.string.settings_language_en) as CharSequence,
+            getString(R.string.settings_language_nl) as CharSequence,
+        )
+        languagePref.entryValues = arrayOf(
+            "system" as CharSequence,
+            "en" as CharSequence,
+            "nl" as CharSequence,
+        )
+        languagePref.value = currentLanguageTag()
+        languagePref.setOnPreferenceChangeListener { _, newValue ->
+            val tag = newValue as? String ?: return@setOnPreferenceChangeListener false
+            val locales = if (tag == "system") {
+                LocaleListCompat.getEmptyLocaleList()
+            } else {
+                LocaleListCompat.forLanguageTags(tag)
+            }
+            AppCompatDelegate.setApplicationLocales(locales)
+            true
+        }
     }
 
-    /** Reminder choices and their interval in minutes (0 = off). */
-    private fun reminderOptions(): List<Pair<Int, Int>> = listOf(
-        R.string.reminder_off to 0,
-        R.string.reminder_30m to 30,
-        R.string.reminder_1h to 60,
-        R.string.reminder_2h to 120,
-        R.string.reminder_4h to 240,
-        R.string.reminder_8h to 480,
-        R.string.reminder_16h to 960,
-        R.string.reminder_24h to 1440,
-    )
+    /** "system" when following the system, otherwise the overridden language tag. */
+    private fun currentLanguageTag(): String {
+        val locales = AppCompatDelegate.getApplicationLocales()
+        return if (locales.isEmpty) "system" else locales.toLanguageTags().substringBefore(',')
+    }
+
+    private fun setUpAbout() {
+        findPreference<Preference>("disclaimer")?.summary = getString(R.string.disclaimer)
+        findPreference<Preference>("version")?.summary = appVersion()
+        findPreference<Preference>("github")?.setOnPreferenceClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/watermarkhu/mijn.3park".toUri()))
+            true
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun appVersion(): String {
+        val context = requireContext()
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        return getString(
+            R.string.settings_version_value,
+            info.versionName.orEmpty(),
+            PackageInfoCompat.getLongVersionCode(info),
+        )
+    }
 }
