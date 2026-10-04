@@ -133,6 +133,14 @@ class Prefs(context: Context) {
         get() = prefs.getLong("active_end_at", 0L)
         set(value) = prefs.edit().putLong("active_end_at", value).apply()
 
+    /**
+     * True while the running session was auto-started from a planned session, so
+     * the ongoing notification can say so.
+     */
+    var activeFromPlan: Boolean
+        get() = prefs.getBoolean("active_from_plan", false)
+        set(value) = prefs.edit().putBoolean("active_from_plan", value).apply()
+
     val isParking: Boolean
         get() = activePlate.isNotBlank()
 
@@ -244,6 +252,7 @@ class Prefs(context: Context) {
             remove("active_plate")
             remove("active_since")
             remove("active_end_at")
+            remove("active_from_plan")
         }
     }
 

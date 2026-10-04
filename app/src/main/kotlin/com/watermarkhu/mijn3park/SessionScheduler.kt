@@ -205,6 +205,16 @@ object SessionScheduler {
         )
     }
 
+    /**
+     * Drop the one-shot "session started" notification. Called once the ongoing
+     * foreground notification takes over, so the session is not announced twice.
+     */
+    fun clearStartedEvent(context: Context) {
+        val manager = context.applicationContext
+            .getSystemService(NotificationManager::class.java) ?: return
+        manager.cancel(EVENTS_NOTIFICATION_ID)
+    }
+
     // --- Scheduling ---
 
     fun scheduleExactOrFallback(context: Context, triggerAtMillis: Long, intent: PendingIntent) {

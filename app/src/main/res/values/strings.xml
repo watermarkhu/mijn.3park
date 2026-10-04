@@ -101,6 +101,7 @@
     <string name="notification_channel_name">Active parking</string>
     <string name="notification_channel_description">Shown while parking is active</string>
     <string name="notification_title">Parking active</string>
+    <string name="notification_title_planned">Planned session active</string>
     <string name="notification_text">%1$s · since %2$s</string>
     <string name="notification_text_balance">%1$s · since %2$s · balance %3$s</string>
     <string name="notification_text_until">%1$s · since %2$s · until %3$s</string>
@@ -114,8 +115,8 @@
     <string name="notification_action_stop">Stop</string>
 
     <!-- Session events & reminders -->
-    <string name="notification_session_started">Session started for %1$s</string>
-    <string name="notification_session_ended">Session for %1$s has ended</string>
+    <string name="notification_session_started">Planned session started for %1$s</string>
+    <string name="notification_session_ended">Planned session for %1$s has ended</string>
     <string name="notification_session_reminder">Still parking %1$s</string>
     <string name="session_events_channel_name">Session updates</string>
     <string name="session_events_channel_description">Shown when a planned parking session starts or ends</string>
