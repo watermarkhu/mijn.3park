@@ -17,15 +17,10 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.color.MaterialColors
-import com.google.android.material.datepicker.CalendarConstraints
-import com.google.android.material.datepicker.DateValidatorPointForward
-import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.timepicker.MaterialTimePicker
-import com.google.android.material.timepicker.TimeFormat
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -102,7 +97,7 @@ class ParkFragment : Fragment(R.layout.fragment_park) {
         selectedEndAt = savedInstanceState?.getLong(KEY_SELECTED_END_AT, 0L) ?: 0L
 
         topupChip.setOnClickListener { showTopupDialog() }
-        endTimeLabel.setOnClickListener { showEndDatePicker() }
+        endTimeLabel.setOnClickListener { showEndTimePicker() }
         endTimeClear.setOnClickListener {
             selectedEndAt = 0L
             renderState()
@@ -472,62 +467,15 @@ class ParkFragment : Fragment(R.layout.fragment_park) {
 
     // --- Planned end time ---
 
-    private fun showEndDatePicker() {
-        val constraints = CalendarConstraints.Builder()
-            .setValidator(DateValidatorPointForward.now())
-            .build()
-        val picker = MaterialDatePicker.Builder.datePicker()
-            .setTitleText(R.string.pick_end_date)
-            .setCalendarConstraints(constraints)
-            .setSelection(
-                selectedEndAt.takeIf { it > 0L }
-                    ?: MaterialDatePicker.todayInUtcMilliseconds()
-            )
-            .build()
-        picker.addOnPositiveButtonClickListener { showEndTimePicker(it) }
-        picker.show(childFragmentManager, "end_date")
-    }
-
-    private fun showEndTimePicker(dateUtcMillis: Long) {
-        val preset = if (selectedEndAt > 0L) {
-            Calendar.getInstance().apply { timeInMillis = selectedEndAt }
-        } else {
-            Calendar.getInstance()
-        }
-        val picker = MaterialTimePicker.Builder()
-            .setTitleText(R.string.pick_end_time)
-            .setHour(preset[Calendar.HOUR_OF_DAY])
-            .setMinute(preset[Calendar.MINUTE])
-            .setInputMode(MaterialTimePicker.INPUT_MODE_CLOCK)
-            .setTimeFormat(
-                if (android.text.format.DateFormat.is24HourFormat(requireContext())) TimeFormat.CLOCK_24H
-                else TimeFormat.CLOCK_12H
-            )
-            .build()
-        picker.addOnPositiveButtonClickListener {
-            // The date picker returns a UTC midnight; interpret its fields in
-            // the device zone so the day matches what was shown.
-            val zoneDay = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
-                timeInMillis = dateUtcMillis
-            }
-            val picked = Calendar.getInstance().apply {
-                set(Calendar.YEAR, zoneDay[Calendar.YEAR])
-                set(Calendar.MONTH, zoneDay[Calendar.MONTH])
-                set(Calendar.DAY_OF_MONTH, zoneDay[Calendar.DAY_OF_MONTH])
-                set(Calendar.HOUR_OF_DAY, picker.hour)
-                set(Calendar.MINUTE, picker.minute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-            if (picked.timeInMillis <= System.currentTimeMillis()) {
+    private fun showEndTimePicker() {
+        DateTimePicker.show(this, R.string.set_end_time, selectedEndAt) { picked ->
+            if (picked <= System.currentTimeMillis()) {
                 Toast.makeText(requireContext(), R.string.error_past_time, Toast.LENGTH_LONG).show()
-                showEndTimePicker(dateUtcMillis)
-                return@addOnPositiveButtonClickListener
+            } else {
+                selectedEndAt = picked
+                renderState()
             }
-            selectedEndAt = picked.timeInMillis
-            renderState()
         }
-        picker.show(childFragmentManager, "end_time")
     }
 
     /** "18:00" when the end is today, "EEE d MMM, HH:mm" otherwise. */
