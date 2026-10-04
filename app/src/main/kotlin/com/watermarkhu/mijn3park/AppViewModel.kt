@@ -252,18 +252,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun syncParkingSession(details: ProductDetails) {
         val activeMember = details.members.firstOrNull { it.active && it.actionId != null }
         if (activeMember != null && !prefs.isParking) {
-            prefs.activePlate = activeMember.plate
-            prefs.activeSince = System.currentTimeMillis()
-            // A planned session the server auto-started may already have been
-            // announced by its start alarm; notifySessionStarted dedupes them.
-            val now = prefs.activeSince
+            val now = System.currentTimeMillis()
+            val serverStart = activeMember.timeStart?.let { Planning.parseTimestamp(it) }?.takeIf { it > 0L }
             val planned = prefs.allPlannedSessions().firstOrNull {
                 it.plate == activeMember.plate && it.startAt <= now && it.endAt > now
             }
+            // A planned session the server auto-started may already have been
+            // announced by its start alarm; notifySessionStarted dedupes them.
             if (planned != null) {
                 SessionScheduler.notifySessionStarted(getApplication(), planned.plate, planned.startAt)
             }
-            ParkingService.start(getApplication(), activeMember.plate, planned?.endAt ?: 0L)
+            // Adopt the session the server already has active (a web start, or a
+            // planned auto-start) instead of issuing another start action, which
+            // the server rejects (PRK-0005). Mirror the server's window: the
+            // merged planned end when it came from a plan, else the action's end.
+            val serverEnd = activeMember.timeEnd?.let { Planning.parseTimestamp(it) }?.takeIf { it > 0L }
+            prefs.activePlate = activeMember.plate
+            prefs.activeSince = serverStart ?: now
+            ParkingService.adopt(
+                getApplication(),
+                activeMember.plate,
+                serverStart ?: now,
+                planned?.endAt ?: serverEnd ?: 0L,
+            )
             SessionScheduler.onActiveSessionChanged(getApplication())
         } else if (activeMember == null && prefs.isParking) {
             prefs.clearActiveParking()
