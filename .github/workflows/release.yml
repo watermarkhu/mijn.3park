@@ -26,6 +26,7 @@ jobs:
       release: ${{ steps.get-version.outputs.release }}
       tag: ${{ steps.get-version.outputs.tag }}
       version: ${{ steps.get-version.outputs.version }}
+      release-notes: ${{ steps.get-version.outputs.release-notes }}
     steps:
       - name: Get semantic version
         uses: RonaldPhilipsen/semVersie@41233349edfb40f4e6da4251fea7684026182dc9 # v2.3.4
@@ -37,7 +38,7 @@ jobs:
   build:
     name: Build signed release
     needs: release
-    if: needs.release.outputs.release == 'true'
+    if: github.event.pull_request.merged == true && needs.release.outputs.release == 'true'
     runs-on: ubuntu-latest
     environment: release
     concurrency:
@@ -50,9 +51,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Set up Android build
         uses: ./.github/actions/setup-android-build
+        with:
+          # Must match the F-Droid buildserver JDK (Debian trixie) so release
+          # APKs are reproducible; keep in sync with the fdroid metadata.
+          java-version: "21"
 
       - name: Patch version into build config
         env:
@@ -68,6 +76,29 @@ jobs:
           echo "Patching versionCode=$VERSION_CODE versionName=$VERSION_NAME"
           sed -i "s/^\( *\)versionCode = .*/\1versionCode = $VERSION_CODE/" app/build.gradle.kts
           sed -i "s/^\( *\)versionName = .*/\1versionName = \"$VERSION_NAME\"/" app/build.gradle.kts
+
+      # Patch locally, commit, tag, and push only the tag: the release commit is
+      # deliberately kept off main. The tagged commit is what F-Droid checks out,
+      # so it must contain the real version, and the APK must be built from it
+      # (clean tree) for reproducible builds.
+      - name: Write changelogs, commit and tag
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+          VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_NOTES: ${{ needs.release.outputs.release-notes }}
+        run: |
+          VERSION_CODE="$(sed -nE 's/^[[:space:]]*versionCode = ([0-9]+).*/\1/p' app/build.gradle.kts | head -n1)"
+          for loc in en-US nl; do
+            mkdir -p "fastlane/metadata/android/$loc/changelogs"
+            printf '%s\n' "${RELEASE_NOTES:-Release $VERSION}" | head -c 500 \
+              > "fastlane/metadata/android/$loc/changelogs/$VERSION_CODE.txt"
+          done
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(release): $VERSION [skip ci]"
+          git tag "$TAG"
+          git push origin "$TAG"
 
       - name: Decrypt upload keystore
         env:

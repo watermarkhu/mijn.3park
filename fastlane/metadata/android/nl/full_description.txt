@@ -1,0 +1,15 @@
+mijn.3park is een onofficiële Android-client voor mijn.2park.nl, een Nederlandse parkeerdienst.
+
+Je logt in met je bestaande 2Park-account, kiest een product en start of stopt het parkeren voor een kenteken, met een blijvende melding zolang er geparkeerd wordt.
+
+Functies:
+- Inloggen met je mijn.2park.nl-gegevens. Ze worden versleuteld op je toestel bewaard.
+- Parkeren starten en stoppen voor elk kenteken, met een blijvende melding.
+- Parkeren tot je stopt: de app houdt het parkeren actief over middernacht, of stel een expliciete eindtijd in.
+- Opgeslagen kentekens: gebruik de kentekens van je 2Park-account (met hun namen), of onthoud je eigen kentekens lokaal.
+- Vergunningsproducten (vast kenteken) worden alleen-lezen en altijd actief getoond.
+- Saldo en opwaarderen voor prepaid producten. Betalen opent in je browser.
+- Historie en transacties: bekijk eerdere parkeeracties en saldowijzigingen.
+- Instellingen: kies een standaardproduct en een licht/donker/systeemthema.
+
+De app communiceert rechtstreeks met mijn.2park.nl en stuurt geen gegevens naar derden. Het is een soloproject en niet verbonden aan mijn.2park.nl.

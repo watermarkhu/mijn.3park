@@ -1,6 +1,6 @@
 name: Set up Android build
 description: >-
-  Installs JDK 17, the Android SDK (platform + build-tools) and Gradle so the
+  Installs the JDK, the Android SDK (platform + build-tools) and Gradle so the
   app can be built. The repository must already be checked out.
 
 inputs:
@@ -8,15 +8,21 @@ inputs:
     description: Whether the Gradle cache is read-only for this run.
     required: false
     default: "true"
+  java-version:
+    description: >-
+      JDK version to build with. Keep in sync with the F-Droid buildserver JDK
+      so release APKs stay reproducible.
+    required: false
+    default: "17"
 
 runs:
   using: composite
   steps:
-    - name: Set up JDK 17
+    - name: Set up JDK
       uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
       with:
         distribution: temurin
-        java-version: "17"
+        java-version: ${{ inputs.java-version }}
 
     - name: Set up Android SDK
       uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
