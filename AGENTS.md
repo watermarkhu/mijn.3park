@@ -117,6 +117,15 @@ Date/time format is `dd-MM-yyyy HH:mm:ss` (Dutch day-first), **not** ISO.
   escaping needed in a form body. This `$` was the single biggest source of
   confusing `INTERNAL_ERROR`s during reverse engineering.
 
+- **The login body is deliberately not RFC form-encoded.** 2Park's web client
+  builds it as `encodeURI("email=" + email + "&password=" + password +
+  "&locale=" + locale)`, so a `+` reaches the server as a space and a `&`
+  truncates the password field. Passwords are created through the same client,
+  so the stored password is that "deformed" value; an RFC-compliant `FormBody`
+  (which sends `%2B` / `%26`) is rejected as `INVALID_CREDS` even though the
+  same password works on the website. `WebForm` reproduces `encodeURI` for
+  `check_credentials.json` only — keep `FormBody` for every other endpoint.
+
 - **"Today" vs "future days" have different mechanics.** A plain `start_action`
   always ends at `23:59:59` of the current day. There is no native "park until I
   stop it" call. Open-ended parking is emulated in `ParkingService` by

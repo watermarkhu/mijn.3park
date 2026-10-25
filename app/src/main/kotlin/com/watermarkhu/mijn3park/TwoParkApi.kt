@@ -10,8 +10,11 @@ import okhttp3.CookieJar
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -176,6 +179,7 @@ class TwoParkApi {
         const val MOCK_PASSWORD = "demo1234"
         private const val TIME_FORMAT = "dd-MM-yyyy HH:mm:ss"
         private const val DATE_FORMAT = "dd-MM-yyyy"
+        private val FORM_MEDIA_TYPE = "application/x-www-form-urlencoded".toMediaType()
 
         // Shared instance so MainActivity and ParkingService reuse one session.
         val instance: TwoParkApi by lazy { TwoParkApi() }
@@ -230,12 +234,24 @@ class TwoParkApi {
     var email: String = ""
     var password: String = ""
 
-    private suspend fun postForm(endpoint: String, fields: Map<String, String>): JSONObject =
+    private suspend fun postForm(endpoint: String, fields: Map<String, String>): JSONObject {
+        val body = FormBody.Builder().apply {
+            fields.forEach { (k, v) -> add(k, v) }
+        }.build()
+        return postBody(endpoint, body)
+    }
+
+    /**
+     * POST a body verbatim. Used by the login request, which must reproduce the
+     * 2Park website's `encodeURI` body instead of RFC form encoding (see
+     * [WebForm]); every other endpoint goes through [postForm].
+     */
+    private suspend fun postRawForm(endpoint: String, body: String): JSONObject =
+        postBody(endpoint, body.toRequestBody(FORM_MEDIA_TYPE))
+
+    private suspend fun postBody(endpoint: String, body: RequestBody): JSONObject =
         withContext(Dispatchers.IO) {
             val url = "$BASE_URL/gsmpark-app-www/json/$endpoint"
-            val body = FormBody.Builder().apply {
-                fields.forEach { (k, v) -> add(k, v) }
-            }.build()
             val request = Request.Builder()
                 .url(url)
                 .post(body)
@@ -309,10 +325,23 @@ class TwoParkApi {
         if (email.isBlank() || password.isBlank()) {
             throw AuthFailedException("No credentials configured")
         }
-        val payload = postForm(
+        val fields = mapOf("email" to email, "password" to password, "locale" to LOCALE)
+        // Passwords are created through 2Park's own clients, which concatenate
+        // the values and run encodeURI() over them. Reproduce that body first
+        // so credentials containing '&' or '+' reach the server exactly as the
+        // website sends them (see WebForm).
+        var payload = postRawForm(
             "check_credentials.json",
-            mapOf("email" to email, "password" to password, "locale" to LOCALE),
+            WebForm.body("email" to email, "password" to password, "locale" to LOCALE),
         )
+        if (isInvalidCredentials(payload) &&
+            (WebForm.differsFromFormEncoding(email) || WebForm.differsFromFormEncoding(password))
+        ) {
+            // Insurance for accounts whose password was stored verbatim (i.e.
+            // created by a correctly encoding client): try the RFC form body
+            // once. Only reached for '&'/'+' credentials.
+            payload = postForm("check_credentials.json", fields)
+        }
         try {
             assertOk(payload, expectedMinor = "AUTHENTICATED")
         } catch (_: TwoParkException) {
@@ -321,6 +350,12 @@ class TwoParkApi {
             throw AuthFailedException("Login rejected")
         }
         loggedIn = true
+    }
+
+    /** True when the login endpoint rejected the credentials (not a session error). */
+    private fun isInvalidCredentials(payload: JSONObject): Boolean {
+        val code = payload.optJSONObject("status")?.optJSONObject("code") ?: return false
+        return code.optString("major") == "FAIL" && code.optString("minor") == "INVALID_CREDS"
     }
 
     private suspend fun ensureLoggedIn() {
