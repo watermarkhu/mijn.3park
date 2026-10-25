@@ -264,4 +264,17 @@ class Prefs(context: Context) {
     fun clearAll() {
         prefs.edit { clear() }
     }
+
+    /**
+     * The 2Park session cookie from the last sign-in — the app's "refresh
+     * token". Persisted (encrypted, like the credentials) so a cold start can
+     * reuse the session before falling back to a full sign-in. Empty when there
+     * is none; cleared on logout.
+     *
+     * Declared after everything else so the properties above keep their line
+     * numbers, which `app/lint-baseline.xml` refers to.
+     */
+    var sessionCookie: String
+        get() = prefs.getString("session_cookie", "") ?: ""
+        set(value) = prefs.edit { putString("session_cookie", value) }
 }

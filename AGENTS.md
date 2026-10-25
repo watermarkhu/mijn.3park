@@ -117,6 +117,22 @@ Date/time format is `dd-MM-yyyy HH:mm:ss` (Dutch day-first), **not** ISO.
   escaping needed in a form body. This `$` was the single biggest source of
   confusing `INTERNAL_ERROR`s during reverse engineering.
 
+- **The login body is deliberately not RFC form-encoded.** Two things deform a
+  password before it reaches `check_credentials.json`:
+  1. The web client's input component sanitises every keystroke of an ordinary
+     field (login password, the reset form's `new_password`, …) with
+     `value.replace(/[&]/g, "")`, i.e. it **deletes every `&`**. A `&` can never
+     be typed into the field, so a password containing one is *stored* and
+     later *submitted* without it. `WebForm.loginPassword` mirrors this.
+  2. The body is then built as `encodeURI("email=" + email + "&password=" +
+     password + "&locale=" + locale)`, which leaves `+` raw, so the server's
+     form parser decodes it as a **space**.
+
+  Verified live: for a password holding `+`, the raw-`+` body returns
+  `AUTHENTICATED` while sending `%2B` (what OkHttp's `FormBody` produces)
+  returns `INVALID_CREDS`. `WebForm` reproduces `encodeURI` for
+  `check_credentials.json` only — keep `FormBody` for every other endpoint.
+
 - **"Today" vs "future days" have different mechanics.** A plain `start_action`
   always ends at `23:59:59` of the current day. There is no native "park until I
   stop it" call. Open-ended parking is emulated in `ParkingService` by
@@ -172,17 +188,32 @@ OkHttp, Material 3. Built with Gradle (Kotlin DSL); see `app/build.gradle.kts`.
 
 - **`TwoParkApi`**: single shared instance (`TwoParkApi.instance`) so the
   activity and the service share one cookie/session. Owns an OkHttp client with
-  an in-memory cookie jar (session cookie never persisted to disk), plus a
+  a cookie jar backed by a [PERSON_NAME] plus a
   `noRedirectClient` variant for the top-up redirect capture. All parsing lives
   here; it returns plain data classes (`Product`, `Member`, `ProductDetails`,
   `Balance`, `TopupForward`, `ParkingAction`, `Mutation`, and their pages).
+  `ensureSession()` is the sign-in gate: it reuses the persisted session (the
+  "refresh token"), falls back to the saved credentials, and throws
+  `AuthFailedException` only when both are unusable. `withAuthRetry` drops a
+  dead session (`dropSession()`) before re-signing in, so a stale cookie is
+  never replayed.
 - **`Prefs`**: `EncryptedSharedPreferences` (AES256, Keystore-backed) holding
-  credentials, selected/default product, saved plates, last balance, and the
-  active parking session. Store name `mijn3park_secure`.
+  credentials, the [PERSON_NAME] session cookie (the "refresh token"),
+  selected/default product, saved plates, last balance, and the active parking
+  session. Store name `mijn3park_secure`.
 - **`ThemePrefs`**: plain (unencrypted) preferences for the light/dark/system
   theme, read by `App` before the Keystore is unlocked.
 - **`App`**: `Application`; applies the saved night mode via
-  `AppCompatDelegate.setDefaultNightMode`.
+  `AppCompatDelegate.setDefaultNightMode`, then installs the session store and
+  the credentials source on `TwoParkApi` (with a lazily created `Prefs`, so
+  app startup only touches the plain `ThemePrefs`).
+- **Sign-in order**: 2Park has no OAuth refresh token — it signs in with a
+  `[PERSON_NAME]` cookie, so that cookie *is* the session and is persisted
+  (encrypted) as if it were one. `TwoParkApi.ensureSession()` is the gate on
+  every start: (1) reuse the persisted cookie, (2) only when 2Park rejects it,
+  sign in silently with the saved credentials, (3) throw `AuthFailedException`
+  when those are missing or rejected — which is the only path that shows
+  `LoginActivity`. Serialisation of the cookie lives in `SessionCookie`.
 - **`AppViewModel`**: activity-scoped shared state: product list, selected
   product, details/members/balance, server sync of the parking session. Exposes
   `state`, `sessionExpired` and one-off `messages` flows.

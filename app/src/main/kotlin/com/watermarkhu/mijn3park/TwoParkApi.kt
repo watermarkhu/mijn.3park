@@ -10,8 +10,11 @@ import okhttp3.CookieJar
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -44,6 +47,19 @@ class ApiUnavailableException(message: String, cause: Throwable? = null) : TwoPa
  * key. The API contract has probably drifted.
  */
 class ApiIncompatibleException(message: String) : TwoParkException(message)
+
+/**
+ * Where the 2Park session cookie is kept between app starts — the app's
+ * "refresh token" (2Park has no OAuth-style token: the session cookie is it).
+ * [Prefs] backs this with AES256-GCM encrypted preferences.
+ */
+interface SessionStore {
+    /** The stored `name=value; …` cookie, or null when there is none. */
+    fun load(): String?
+
+    /** Keep [cookie], or pass null to forget the session. */
+    fun save(cookie: String?)
+}
 
 fun normalizePlate(plate: String): String =
     plate.trim().uppercase(Locale.ROOT).replace("-", "").replace(" ", "")
@@ -176,6 +192,10 @@ class TwoParkApi {
         const val MOCK_PASSWORD = "demo1234"
         private const val TIME_FORMAT = "dd-MM-yyyy HH:mm:ss"
         private const val DATE_FORMAT = "dd-MM-yyyy"
+        private val FORM_MEDIA_TYPE = "application/x-www-form-urlencoded".toMediaType()
+
+        // Host whose session cookie survives between app starts.
+        private val HOST = BASE_URL.toHttpUrlOrNull()?.host ?: "mijn.2park.nl"
 
         // Shared instance so MainActivity and ParkingService reuse one session.
         val instance: TwoParkApi by lazy { TwoParkApi() }
@@ -189,19 +209,41 @@ class TwoParkApi {
 
     private val cookieStore = mutableMapOf<String, List<Cookie>>()
 
+    /**
+     * Persists the 2Park session cookie so a cold start can reuse the session
+     * ("refresh token") instead of sending the password again. Installed by
+     * [App] with the encrypted [Prefs]; null keeps it in memory only.
+     */
+    var sessionStore: SessionStore? = null
+
+    /**
+     * Where a silent sign-in gets its credentials when the session is gone.
+     * Installed by [App] with the encrypted [Prefs].
+     */
+    var savedCredentials: (() -> Pair<String, String>?)? = null
+
+    /** True once [restoreSession] consulted [sessionStore] in this process. */
+    @Volatile
+    private var sessionRestored = false
+
     private val client = OkHttpClient.Builder()
         .cookieJar(
             object : CookieJar {
                 override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-                    synchronized(cookieStore) {
+                    val merged = synchronized(cookieStore) {
                         val existing = cookieStore[url.host].orEmpty()
                             .filter { old -> cookies.none { it.name == old.name } }
-                        cookieStore[url.host] = existing + cookies
+                        (existing + cookies).also { cookieStore[url.host] = it }
                     }
+                    if (url.host == HOST) persistSession(merged)
                 }
 
-                override fun loadForRequest(url: HttpUrl): List<Cookie> =
-                    synchronized(cookieStore) { cookieStore[url.host].orEmpty() }
+                override fun loadForRequest(url: HttpUrl): List<Cookie> {
+                    // Pick the persisted session back up before the first
+                    // request of a cold start goes out.
+                    if (url.host == HOST) restoreSession()
+                    return synchronized(cookieStore) { cookieStore[url.host].orEmpty() }
+                }
             },
         )
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -214,6 +256,54 @@ class TwoParkApi {
         .followRedirects(followRedirects = false)
         .followSslRedirects(false)
         .build()
+
+    /** Keep [cookies] for the next app start. */
+    private fun persistSession(cookies: List<Cookie>) {
+        sessionStore?.save(SessionCookie.encode(cookies.map { it.name to it.value }))
+    }
+
+    /**
+     * Load the persisted session cookie into the jar once per process, and report
+     * whether there is one to try. It is not validated here: the first request
+     * does that, and [withAuthRetry] signs in with the saved credentials when
+     * 2Park has forgotten the session.
+     */
+    private fun restoreSession(): Boolean {
+        if (!sessionRestored) {
+            sessionRestored = true
+            val raw = sessionStore?.load().orEmpty()
+            if (raw.isNotBlank()) {
+                val restored = SessionCookie.decode(raw).mapNotNull { (name, value) ->
+                    runCatching {
+                        Cookie.Builder()
+                            .domain(HOST)
+                            .path("/")
+                            .name(name)
+                            .value(value)
+                            .httpOnly()
+                            .secure()
+                            .build()
+                    }.getOrNull()
+                }
+                if (restored.isNotEmpty()) {
+                    synchronized(cookieStore) {
+                        val existing = cookieStore[HOST].orEmpty()
+                            .filter { old -> restored.none { it.name == old.name } }
+                        cookieStore[HOST] = existing + restored
+                    }
+                }
+            }
+        }
+        return synchronized(cookieStore) { cookieStore[HOST].orEmpty().isNotEmpty() }
+    }
+
+    /** Forget the session everywhere: cookie jar, persisted store, login flag. */
+    private fun dropSession() {
+        synchronized(cookieStore) { cookieStore.clear() }
+        sessionRestored = true
+        sessionStore?.save(null)
+        loggedIn = false
+    }
 
     private val loginMutex = Mutex()
 
@@ -230,12 +320,24 @@ class TwoParkApi {
     var email: String = ""
     var password: String = ""
 
-    private suspend fun postForm(endpoint: String, fields: Map<String, String>): JSONObject =
+    private suspend fun postForm(endpoint: String, fields: Map<String, String>): JSONObject {
+        val body = FormBody.Builder().apply {
+            fields.forEach { (k, v) -> add(k, v) }
+        }.build()
+        return postBody(endpoint, body)
+    }
+
+    /**
+     * POST a body verbatim. Used by the login request, which must reproduce the
+     * 2Park website's `encodeURI` body instead of RFC form encoding (see
+     * [WebForm]); every other endpoint goes through [postForm].
+     */
+    private suspend fun postRawForm(endpoint: String, body: String): JSONObject =
+        postBody(endpoint, body.toRequestBody(FORM_MEDIA_TYPE))
+
+    private suspend fun postBody(endpoint: String, body: RequestBody): JSONObject =
         withContext(Dispatchers.IO) {
             val url = "$BASE_URL/gsmpark-app-www/json/$endpoint"
-            val body = FormBody.Builder().apply {
-                fields.forEach { (k, v) -> add(k, v) }
-            }.build()
             val request = Request.Builder()
                 .url(url)
                 .post(body)
@@ -289,30 +391,80 @@ class TwoParkApi {
         }
     }
 
+    /** Explicit sign-in from the login screen. */
     suspend fun login(email: String, password: String) {
+        this.email = email
+        this.password = password
+        mock = false
+        loginMutex.withLock { doLogin() }
+    }
+
+    /**
+     * Startup gate for the activity and the parking service: reuse the persisted
+     * session ("refresh token") first, then sign in silently with the saved
+     * credentials. Throws [AuthFailedException] only when both are unusable —
+     * that is what sends the user to the login screen.
+     */
+    suspend fun ensureSession() {
+        if (loggedIn) return
+        loginMutex.withLock {
+            if (loggedIn) return
+            if (restoreSession()) {
+                // Optimistic: [withAuthRetry] signs in with the saved
+                // credentials if 2Park has forgotten this session.
+                loggedIn = true
+                return
+            }
+            doLogin()
+        }
+    }
+
+    private suspend fun doLogin() {
+        // The startup path carries no in-memory credentials: fall back to the
+        // encrypted store, which is also where a re-login after a lost session
+        // gets them from.
+        if (email.isBlank() || password.isBlank()) {
+            savedCredentials?.invoke()?.let { (mail, secret) ->
+                email = mail
+                password = secret
+            }
+        }
+        if (email.isBlank() || password.isBlank()) {
+            throw AuthFailedException("No credentials configured")
+        }
         // Hardcoded demo account: serve mock data, never touch the network.
         if (email.trim().equals(MOCK_EMAIL, ignoreCase = true) && password == MOCK_PASSWORD) {
-            this.email = email
-            this.password = password
             mock = true
             loggedIn = true
             mockBackend = MockBackend()
             return
         }
-        mock = false
-        this.email = email
-        this.password = password
-        loginMutex.withLock { doLogin() }
-    }
-
-    private suspend fun doLogin() {
-        if (email.isBlank() || password.isBlank()) {
-            throw AuthFailedException("No credentials configured")
-        }
-        val payload = postForm(
+        // The web client strips every '&' from typed input (see
+        // [WebForm.loginPassword]), so the account's stored password holds
+        // none. Reproduce that before building the body.
+        val stored = WebForm.loginPassword(password)
+        // Passwords are created through 2Park's own clients, which concatenate
+        // the values and run encodeURI() over them. Reproduce that body first
+        // so credentials containing '&' or '+' reach the server exactly as the
+        // website sends them (see WebForm).
+        var payload = postRawForm(
             "check_credentials.json",
-            mapOf("email" to email, "password" to password, "locale" to LOCALE),
+            WebForm.body("email" to email, "password" to stored, "locale" to LOCALE),
         )
+        if (isInvalidCredentials(payload) &&
+            (stored != password ||
+                WebForm.differsFromFormEncoding(email) ||
+                WebForm.differsFromFormEncoding(password))
+        ) {
+            // Insurance for an account whose password was stored verbatim (i.e.
+            // created by a client that keeps '&'): send the RFC form body once,
+            // which percent-encodes '&' and '+' instead of letting them break
+            // the field.
+            payload = postForm(
+                "check_credentials.json",
+                mapOf("email" to email, "password" to password, "locale" to LOCALE),
+            )
+        }
         try {
             assertOk(payload, expectedMinor = "AUTHENTICATED")
         } catch (_: TwoParkException) {
@@ -323,11 +475,15 @@ class TwoParkApi {
         loggedIn = true
     }
 
+    /** True when the login endpoint rejected the credentials (not a session error). */
+    private fun isInvalidCredentials(payload: JSONObject): Boolean {
+        val code = payload.optJSONObject("status")?.optJSONObject("code") ?: return false
+        return code.optString("major") == "FAIL" && code.optString("minor") == "INVALID_CREDS"
+    }
+
     private suspend fun ensureLoggedIn() {
-        if (loggedIn) return
-        loginMutex.withLock {
-            if (!loggedIn) doLogin()
-        }
+        // A single policy for every entry point; see [ensureSession].
+        ensureSession()
     }
 
     /**
@@ -341,7 +497,9 @@ class TwoParkApi {
         return try {
             block()
         } catch (e: SessionExpiredException) {
-            loggedIn = false
+            // The session is dead: forget it (jar + store), so the retry signs
+            // in with the saved credentials instead of replaying the cookie.
+            dropSession()
             ensureLoggedIn()
             block()
         }
@@ -349,8 +507,7 @@ class TwoParkApi {
 
     /** Drop the session: cookies, login flag and in-memory credentials. */
     fun logout() {
-        synchronized(cookieStore) { cookieStore.clear() }
-        loggedIn = false
+        dropSession()
         mock = false
         mockBackend = MockBackend()
         email = ""

@@ -66,16 +66,16 @@ android {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.4.20")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.4.21")
     implementation("com.google.android.material:material:1.14.0")
     implementation("androidx.appcompat:appcompat:1.8.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
-    implementation("androidx.fragment:fragment-ktx:1.9.0")
+    implementation("androidx.fragment:fragment-ktx:1.9.1")
     implementation("androidx.recyclerview:recyclerview:1.4.0")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
-    implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.1")
     implementation("androidx.security:security-crypto:1.1.0")
     implementation("androidx.preference:preference-ktx:1.2.1")
 

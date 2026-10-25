@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- No color overrides: let Material You dynamic color do its thing. -->
-    <style name="Theme.App" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+    <!-- Standard Material 3 colours. Dynamic (Material You) colours are applied
+         on top as an overlay when the "Material 3" switch is enabled in
+         Settings — a theme that inherits DynamicColors would keep them on
+         regardless of that switch. No hardcoded colours either way: use colour
+         roles only, so both palettes work. -->
+    <style name="Theme.App" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Dark status-bar icons on the light theme, so they stay visible. -->
         <item name="android:windowLightStatusBar">true</item>
         <!-- Required by the PreferenceFragmentCompat settings screen. -->
         <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
     </style>
 
-    <!-- Material 3 Expressive dynamic colour palette, applied on top of Theme.App
-         when enabled in Settings. Colours only; shapes and motion are unchanged. -->
+    <!-- Material You dynamic colour palette (Material 3 Expressive), applied on
+         top of Theme.App by ThemePrefs.applyTheme() when enabled in Settings.
+         Colours only; shapes and motion are unchanged. -->
     <style name="ThemeOverlay.App.Expressive" parent="ThemeOverlay.Material3Expressive.DynamicColors.DayNight"/>
 </resources>

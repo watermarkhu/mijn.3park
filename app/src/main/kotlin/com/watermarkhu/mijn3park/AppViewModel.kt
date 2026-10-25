@@ -301,9 +301,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun ensureLoggedIn() {
-        if (api.email.isBlank()) {
-            api.login(prefs.email, prefs.password)
-        }
+        // Session first ("refresh token"), then the saved credentials: the API
+        // owns that decision and throws only when both are unusable.
+        api.ensureSession()
     }
 
     /** Signal that a direct API call failed because the credentials are dead. */
