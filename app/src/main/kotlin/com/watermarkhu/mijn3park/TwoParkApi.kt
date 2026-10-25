@@ -325,22 +325,31 @@ class TwoParkApi {
         if (email.isBlank() || password.isBlank()) {
             throw AuthFailedException("No credentials configured")
         }
-        val fields = mapOf("email" to email, "password" to password, "locale" to LOCALE)
+        // The web client strips every '&' from typed input (see
+        // [WebForm.loginPassword]), so the account's stored password holds
+        // none. Reproduce that before building the body.
+        val stored = WebForm.loginPassword(password)
         // Passwords are created through 2Park's own clients, which concatenate
         // the values and run encodeURI() over them. Reproduce that body first
         // so credentials containing '&' or '+' reach the server exactly as the
         // website sends them (see WebForm).
         var payload = postRawForm(
             "check_credentials.json",
-            WebForm.body("email" to email, "password" to password, "locale" to LOCALE),
+            WebForm.body("email" to email, "password" to stored, "locale" to LOCALE),
         )
         if (isInvalidCredentials(payload) &&
-            (WebForm.differsFromFormEncoding(email) || WebForm.differsFromFormEncoding(password))
+            (stored != password ||
+                WebForm.differsFromFormEncoding(email) ||
+                WebForm.differsFromFormEncoding(password))
         ) {
-            // Insurance for accounts whose password was stored verbatim (i.e.
-            // created by a correctly encoding client): try the RFC form body
-            // once. Only reached for '&'/'+' credentials.
-            payload = postForm("check_credentials.json", fields)
+            // Insurance for an account whose password was stored verbatim (i.e.
+            // created by a client that keeps '&'): send the RFC form body once,
+            // which percent-encodes '&' and '+' instead of letting them break
+            // the field.
+            payload = postForm(
+                "check_credentials.json",
+                mapOf("email" to email, "password" to password, "locale" to LOCALE),
+            )
         }
         try {
             assertOk(payload, expectedMinor = "AUTHENTICATED")

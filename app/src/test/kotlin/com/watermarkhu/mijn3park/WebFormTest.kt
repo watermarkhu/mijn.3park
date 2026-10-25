@@ -59,6 +59,40 @@ class WebFormTest {
     }
 
     @Test
+    fun body_matchesTheVerifiedLiveLoginBodyForAPlusPassword() {
+        // Verified against POST check_credentials.json: for a password holding
+        // '+', the body the website sends (raw '+') is ACCEPTED, while the
+        // RFC-encoded equivalent ('%2B', what OkHttp's FormBody produces) is
+        // rejected with INVALID_CREDS. Keep these bytes stable.
+        assertEquals(
+            "email=user@example.com&password=#A%5E1bC!+XyZ0@QwErTy&locale=nl_NL",
+            WebForm.body(
+                "email" to "user@example.com",
+                "password" to "#A^1bC!+XyZ0@QwErTy",
+                "locale" to "nl_NL",
+            ),
+        )
+        assertTrue(WebForm.differsFromFormEncoding("#A^1bC!+XyZ0@QwErTy"))
+    }
+
+    @Test
+    fun loginPassword_stripsAmpersandsLikeTheWebClient() {
+        // The site's form input sanitises values with replace(/[&]/g, "").
+        assertEquals("", WebForm.loginPassword(""))
+        assertEquals("Str0ngPass1!", WebForm.loginPassword("Str0ngPass1!"))
+        assertEquals("ab", WebForm.loginPassword("a&b&&"))
+        assertEquals("#A^1bC!+XyZ0@QwErTy", WebForm.loginPassword("#A^1bC&!+XyZ0@QwErTy"))
+    }
+
+    @Test
+    fun body_forAStrippedPasswordKeepsThePlusRaw() {
+        assertEquals(
+            "password=#A%5E1bC!+XyZ0@QwErTy",
+            WebForm.body("password" to WebForm.loginPassword("#A^1bC&!+XyZ0@QwErTy")),
+        )
+    }
+
+    @Test
     fun differsFromFormEncoding_onlyForAmpersandAndPlus() {
         assertTrue(WebForm.differsFromFormEncoding("a&b"))
         assertTrue(WebForm.differsFromFormEncoding("a+b"))

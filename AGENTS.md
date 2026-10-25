@@ -117,13 +117,20 @@ Date/time format is `dd-MM-yyyy HH:mm:ss` (Dutch day-first), **not** ISO.
   escaping needed in a form body. This `$` was the single biggest source of
   confusing `INTERNAL_ERROR`s during reverse engineering.
 
-- **The login body is deliberately not RFC form-encoded.** 2Park's web client
-  builds it as `encodeURI("email=" + email + "&password=" + password +
-  "&locale=" + locale)`, so a `+` reaches the server as a space and a `&`
-  truncates the password field. Passwords are created through the same client,
-  so the stored password is that "deformed" value; an RFC-compliant `FormBody`
-  (which sends `%2B` / `%26`) is rejected as `INVALID_CREDS` even though the
-  same password works on the website. `WebForm` reproduces `encodeURI` for
+- **The login body is deliberately not RFC form-encoded.** Two things deform a
+  password before it reaches `check_credentials.json`:
+  1. The web client's input component sanitises every keystroke of an ordinary
+     field (login password, the reset form's `new_password`, …) with
+     `value.replace(/[&]/g, "")`, i.e. it **deletes every `&`**. A `&` can never
+     be typed into the field, so a password containing one is *stored* and
+     later *submitted* without it. `WebForm.loginPassword` mirrors this.
+  2. The body is then built as `encodeURI("email=" + email + "&password=" +
+     password + "&locale=" + locale)`, which leaves `+` raw, so the server's
+     form parser decodes it as a **space**.
+
+  Verified live: for a password holding `+`, the raw-`+` body returns
+  `AUTHENTICATED` while sending `%2B` (what OkHttp's `FormBody` produces)
+  returns `INVALID_CREDS`. `WebForm` reproduces `encodeURI` for
   `check_credentials.json` only — keep `FormBody` for every other endpoint.
 
 - **"Today" vs "future days" have different mechanics.** A plain `start_action`

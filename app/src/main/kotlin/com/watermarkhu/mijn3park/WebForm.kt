@@ -52,6 +52,18 @@ object WebForm {
         return out.toString()
     }
 
+    /**
+     * The password as the web client actually sends it: with every `&` removed.
+     *
+     * The site's form component sanitises each keystroke of an ordinary input
+     * (the login password field and the reset form's `new_password` alike) with
+     * `value.replace(/[&]/g, "")`, so a `&` can never reach the server — a
+     * password typed with one is stored *and* submitted without it. The
+     * remaining characters then go through [body]: a `+` is left raw, and the
+     * server decodes that as a space.
+     */
+    fun loginPassword(typed: String): String = typed.replace("&", "")
+
     /** Build `key=value&key=value…` with [encode] applied to keys and values. */
     fun body(vararg fields: Pair<String, String>): String =
         fields.joinToString("&") { (key, value) -> "${encode(key)}=${encode(value)}" }
