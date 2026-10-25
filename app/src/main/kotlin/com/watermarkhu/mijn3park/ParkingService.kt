@@ -324,9 +324,9 @@ class ParkingService : Service() {
     }
 
     private suspend fun ensureCredentials() {
-        if (api.email.isBlank()) {
-            api.login(prefs.email, prefs.password)
-        }
+        // Session first ("refresh token"), then the saved credentials: the API
+        // owns that decision and throws only when both are unusable.
+        api.ensureSession()
     }
 
     /**
