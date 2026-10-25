@@ -1,0 +1,133 @@
+name: Dev cycle
+
+# After a `dev` -> `main` release PR is merged, `dev` is reset to `main` and a
+# fresh draft `dev` -> `main` PR is opened so the next cycle can start.
+# `workflow_dispatch` bootstraps the cycle when `dev` does not exist yet.
+#
+# Authentication uses the release GitHub App (environment `release`) instead of
+# `GITHUB_TOKEN`: pushes and PRs made with `GITHUB_TOKEN` do not trigger other
+# workflows, and an App is what can be granted a branch-protection bypass.
+on:
+  pull_request:
+    types:
+      - closed
+    branches: [main]
+  workflow_dispatch:
+
+# Cycles must never overlap; queue instead of cancel.
+concurrency:
+  group: dev-cycle
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  restart:
+    name: Recreate dev and open draft PR
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.ref == 'dev' &&
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    # `APP_CLIENT_ID` / `APP_PRIVATE_KEY` live in the `release` environment.
+    environment: release
+    # Everything below authenticates with the App installation token; the
+    # workflow's own `GITHUB_TOKEN` is not used at all.
+    permissions: {}
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          # Persisted in the local git config, so later pushes use the App too.
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Resolve App bot identity
+        id: bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
+          echo "name=${APP_SLUG}[bot]" >> "$GITHUB_OUTPUT"
+          echo "email=${user_id}+${APP_SLUG}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+
+      - name: Reset dev to main
+        env:
+          MERGED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BOT_NAME: ${{ steps.bot.outputs.name }}
+          BOT_EMAIL: ${{ steps.bot.outputs.email }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "${BOT_NAME}"
+          git config user.email "${BOT_EMAIL}"
+          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+
+          # A merged dev PR may leave dev behind main (squash merge) or ahead of
+          # it (work pushed after the merge). Only reset when nothing new has
+          # landed on dev since the merge; otherwise keep it and just make sure
+          # the promotion PR exists.
+          if git show-ref --verify --quiet refs/remotes/origin/dev; then
+            current="$(git rev-parse refs/remotes/origin/dev)"
+            if [[ -n "${MERGED_HEAD_SHA}" && "${current}" != "${MERGED_HEAD_SHA}" ]]; then
+              echo "dev moved to ${current} after the merge; leaving it untouched."
+              exit 0
+            fi
+          fi
+
+          git checkout -B dev
+          # GitHub refuses to open a PR when head and base have no commits in
+          # between, so give the new cycle a marker commit.
+          git commit --allow-empty -m "chore: start new dev cycle"
+
+          # On a merge we know exactly what dev pointed at, so lease on that
+          # value; on manual dispatch fall back to the fetched remote-tracking
+          # ref (still refuses to clobber a concurrent push).
+          if [[ -n "${MERGED_HEAD_SHA}" ]]; then
+            git push --force-with-lease=dev:"${MERGED_HEAD_SHA}" origin dev
+          else
+            git push --force-with-lease origin dev
+          fi
+
+      - name: Open draft dev -> main PR
+        env:
+          # App token, so the PR is opened by the App and can trigger workflows.
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          existing="$(gh pr list --base main --head dev --state open --json number --jq '.[0].number // empty')"
+          if [[ -n "${existing}" ]]; then
+            echo "Promotion PR already open: #${existing}"
+            exit 0
+          fi
+
+          gh pr create \
+            --base main \
+            --head dev \
+            --draft \
+            --title "dev → main" \
+            --body "$(sed 's/^ *//' <<'EOF'
+          Rolling `dev` → `main` promotion PR, opened automatically in draft mode.
+
+          Every change lands on `dev` first (including Renovate updates, which
+          target `dev` and auto-merge once CI is green). This PR collects those
+          changes; merging it publishes a release and starts the next cycle.
+
+          Leave it as a draft until the release is ready. See `CONTRIBUTING.md`.
+          EOF
+          )"
