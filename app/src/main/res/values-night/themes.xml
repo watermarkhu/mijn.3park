@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.App" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+    <!-- Standard Material 3 colours, like values/themes.xml: the "Material 3"
+         switch adds the dynamic palette as an overlay on top. Inheriting
+         DynamicColors here would force it on in dark mode. -->
+    <style name="Theme.App" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Light status-bar icons on the dark theme. -->
         <item name="android:windowLightStatusBar">false</item>
         <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
