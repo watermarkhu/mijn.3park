@@ -14,5 +14,5 @@ buildscript {
 plugins {
     // Kotlin support is built into AGP 9+, so the org.jetbrains.kotlin.android
     // plugin is no longer applied.
-    id("com.android.application") version "9.5.2" apply false
+    id("com.android.application") version "9.5.3" apply false
 }
